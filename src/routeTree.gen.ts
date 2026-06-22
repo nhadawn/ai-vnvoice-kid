@@ -13,6 +13,8 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedDashboardChildIdRouteImport } from './routes/_authenticated/dashboard.$childId'
+import { Route as AuthenticatedBoardChildIdRouteImport } from './routes/_authenticated/board.$childId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -33,16 +35,32 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDashboardChildIdRoute =
+  AuthenticatedDashboardChildIdRouteImport.update({
+    id: '/dashboard/$childId',
+    path: '/dashboard/$childId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBoardChildIdRoute =
+  AuthenticatedBoardChildIdRouteImport.update({
+    id: '/board/$childId',
+    path: '/board/$childId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRoute
+  '/board/$childId': typeof AuthenticatedBoardChildIdRoute
+  '/dashboard/$childId': typeof AuthenticatedDashboardChildIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRoute
+  '/board/$childId': typeof AuthenticatedBoardChildIdRoute
+  '/dashboard/$childId': typeof AuthenticatedDashboardChildIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -50,13 +68,22 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
+  '/_authenticated/board/$childId': typeof AuthenticatedBoardChildIdRoute
+  '/_authenticated/dashboard/$childId': typeof AuthenticatedDashboardChildIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/app'
+  fullPaths: '/' | '/auth' | '/app' | '/board/$childId' | '/dashboard/$childId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/app'
-  id: '__root__' | '/' | '/_authenticated' | '/auth' | '/_authenticated/app'
+  to: '/' | '/auth' | '/app' | '/board/$childId' | '/dashboard/$childId'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/app'
+    | '/_authenticated/board/$childId'
+    | '/_authenticated/dashboard/$childId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,15 +122,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dashboard/$childId': {
+      id: '/_authenticated/dashboard/$childId'
+      path: '/dashboard/$childId'
+      fullPath: '/dashboard/$childId'
+      preLoaderRoute: typeof AuthenticatedDashboardChildIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/board/$childId': {
+      id: '/_authenticated/board/$childId'
+      path: '/board/$childId'
+      fullPath: '/board/$childId'
+      preLoaderRoute: typeof AuthenticatedBoardChildIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRoute
+  AuthenticatedBoardChildIdRoute: typeof AuthenticatedBoardChildIdRoute
+  AuthenticatedDashboardChildIdRoute: typeof AuthenticatedDashboardChildIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRoute,
+  AuthenticatedBoardChildIdRoute: AuthenticatedBoardChildIdRoute,
+  AuthenticatedDashboardChildIdRoute: AuthenticatedDashboardChildIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
