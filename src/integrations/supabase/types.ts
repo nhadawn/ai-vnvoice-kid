@@ -14,7 +14,289 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cards: {
+        Row: {
+          category_id: string | null
+          child_id: string
+          context_tags: string[] | null
+          created_at: string
+          emoji: string | null
+          id: string
+          image_url: string | null
+          label: string
+          last_used_at: string | null
+          part_of_speech: Database["public"]["Enums"]["part_of_speech"]
+          use_count: number
+        }
+        Insert: {
+          category_id?: string | null
+          child_id: string
+          context_tags?: string[] | null
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          image_url?: string | null
+          label: string
+          last_used_at?: string | null
+          part_of_speech?: Database["public"]["Enums"]["part_of_speech"]
+          use_count?: number
+        }
+        Update: {
+          category_id?: string | null
+          child_id?: string
+          context_tags?: string[] | null
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          image_url?: string | null
+          label?: string
+          last_used_at?: string | null
+          part_of_speech?: Database["public"]["Enums"]["part_of_speech"]
+          use_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cards_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cards_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          child_id: string
+          color: string | null
+          created_at: string
+          icon: string | null
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          child_id: string
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          child_id?: string
+          color?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      children: {
+        Row: {
+          birth_year: number | null
+          created_at: string
+          current_level: Database["public"]["Enums"]["scaffold_level"]
+          id: string
+          name: string
+          parent_id: string
+          voice_preference: string
+        }
+        Insert: {
+          birth_year?: number | null
+          created_at?: string
+          current_level?: Database["public"]["Enums"]["scaffold_level"]
+          id?: string
+          name: string
+          parent_id: string
+          voice_preference?: string
+        }
+        Update: {
+          birth_year?: number | null
+          created_at?: string
+          current_level?: Database["public"]["Enums"]["scaffold_level"]
+          id?: string
+          name?: string
+          parent_id?: string
+          voice_preference?: string
+        }
+        Relationships: []
+      }
+      interactions: {
+        Row: {
+          card_id: string | null
+          child_id: string
+          created_at: string
+          hour_of_day: number
+          id: number
+          label: string
+          part_of_speech: Database["public"]["Enums"]["part_of_speech"] | null
+          position_in_utterance: number | null
+          suggestion_accepted: boolean | null
+          utterance_id: string | null
+          was_suggested: boolean
+        }
+        Insert: {
+          card_id?: string | null
+          child_id: string
+          created_at?: string
+          hour_of_day: number
+          id?: number
+          label: string
+          part_of_speech?: Database["public"]["Enums"]["part_of_speech"] | null
+          position_in_utterance?: number | null
+          suggestion_accepted?: boolean | null
+          utterance_id?: string | null
+          was_suggested?: boolean
+        }
+        Update: {
+          card_id?: string | null
+          child_id?: string
+          created_at?: string
+          hour_of_day?: number
+          id?: number
+          label?: string
+          part_of_speech?: Database["public"]["Enums"]["part_of_speech"] | null
+          position_in_utterance?: number | null
+          suggestion_accepted?: boolean | null
+          utterance_id?: string | null
+          was_suggested?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scaffold_state: {
+        Row: {
+          card_id: string
+          child_id: string
+          failed_suggestions: number
+          id: string
+          level: Database["public"]["Enums"]["scaffold_level"]
+          updated_at: string
+          uses_at_current_level: number
+        }
+        Insert: {
+          card_id: string
+          child_id: string
+          failed_suggestions?: number
+          id?: string
+          level?: Database["public"]["Enums"]["scaffold_level"]
+          updated_at?: string
+          uses_at_current_level?: number
+        }
+        Update: {
+          card_id?: string
+          child_id?: string
+          failed_suggestions?: number
+          id?: string
+          level?: Database["public"]["Enums"]["scaffold_level"]
+          updated_at?: string
+          uses_at_current_level?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scaffold_state_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scaffold_state_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      utterances: {
+        Row: {
+          child_id: string
+          created_at: string
+          id: string
+          level: Database["public"]["Enums"]["scaffold_level"]
+          text: string
+          word_count: number
+        }
+        Insert: {
+          child_id: string
+          created_at?: string
+          id?: string
+          level: Database["public"]["Enums"]["scaffold_level"]
+          text: string
+          word_count: number
+        }
+        Update: {
+          child_id?: string
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["scaffold_level"]
+          text?: string
+          word_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "utterances_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +305,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      part_of_speech: "noun" | "verb" | "adjective" | "phrase" | "pronoun"
+      scaffold_level: "level_1" | "level_2" | "level_3" | "level_4"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +433,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      part_of_speech: ["noun", "verb", "adjective", "phrase", "pronoun"],
+      scaffold_level: ["level_1", "level_2", "level_3", "level_4"],
+    },
   },
 } as const
