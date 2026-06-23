@@ -116,7 +116,7 @@ function BoardPage() {
 
   const handleTap = async (card: Card) => {
     speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) });
-    const wasSuggested = !!suggestion?.cards.some((c) => c.id === card.id);
+    const wasSuggested = !!(suggestion?.cards.some((c) => c.id === card.id) || suggestion?.candidates.some((c) => c.id === card.id));
     if (suggestion && !wasSuggested) {
       // Child ignored the suggestion
       const next = ignoredCount + 1;
