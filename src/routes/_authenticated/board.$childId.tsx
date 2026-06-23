@@ -7,9 +7,10 @@ import { UtteranceBar } from "@/components/UtteranceBar";
 import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen } from "lucide-react";
-import { speak, type Emotion } from "@/lib/tts";
-import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen, Search, Siren } from "lucide-react";
+import { speak, playSOS, type Emotion } from "@/lib/tts";
+import { buildBigrams, type SmartGridContext } from "@/lib/smart-grid";
 import { suggestNext, suggestCandidates, shouldPromote } from "@/lib/scaffolding";
 import { toast } from "sonner";
 
@@ -35,6 +36,7 @@ function BoardPage() {
   const [ignoredCount, setIgnoredCount] = useState(0);
   const [scaffoldingPaused, setScaffoldingPaused] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [search, setSearch] = useState("");
 
   const refresh = useCallback(async () => {
     const [{ data: childData }, { data: catData }, { data: cardData }, { data: uttData }] = await Promise.all([
@@ -79,15 +81,19 @@ function BoardPage() {
     unigramCounts: unigrams,
   }), [utterance, bigrams, unigrams]);
 
-  const visibleCards = useMemo(
-    () => cards.filter((c) => !activeCat || c.category_id === activeCat),
-    [cards, activeCat],
-  );
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-  const highlights = useMemo(
-    () => (scaffoldingPaused || locked) ? new Map() : classifyHighlights(visibleCards, ctx, 3),
-    [visibleCards, ctx, scaffoldingPaused, locked],
-  );
+  const visibleCards = useMemo(() => {
+    const q = normalize(search.trim());
+    return cards.filter((c) => {
+      if (q) return normalize(c.label).includes(q);
+      return !activeCat || c.category_id === activeCat;
+    });
+  }, [cards, activeCat, search]);
+
+  // No grid highlights — suggestions live only in the right-side AI panel.
+  void ctx;
 
   const emotionForCard = (c: Card): Emotion => {
     const l = c.label.toLowerCase();
