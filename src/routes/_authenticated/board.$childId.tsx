@@ -210,6 +210,15 @@ function BoardPage() {
           </div>
           <div className="flex gap-1.5 flex-wrap justify-end">
             <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => { playSOS(); toast.error("🚨 Đã gửi tín hiệu SOS!"); }}
+              aria-label="SOS — Cứu giúp"
+              className="font-bold"
+            >
+              <Siren className="h-4 w-4 mr-1.5" />SOS
+            </Button>
+            <Button
               variant={locked ? "default" : "outline"}
               size="sm"
               onClick={() => {
@@ -239,43 +248,56 @@ function BoardPage() {
           onRemoveLast={() => setUtterance((u) => u.slice(0, -1))}
         />
 
-        {/* Category tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {categories.map((c) => (
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔍 Tìm từ nhanh (vd: sữa, ăn, vui...)"
+            className="pl-9 h-11 rounded-xl bg-card text-base"
+          />
+          {search && (
             <button
-              key={c.id}
-              onClick={() => setActiveCat(c.id)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold border-2 transition-all ${
-                activeCat === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:border-primary/40"
-              }`}
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Xoá tìm kiếm"
             >
-              <span className="mr-1.5">{c.icon}</span>{c.name}
+              <X className="h-4 w-4" />
             </button>
-          ))}
+          )}
         </div>
 
-        {/* Grid + AI side panel */}
+        {/* Category tabs (hidden during search) */}
+        {!search && (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setActiveCat(c.id)}
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold border-2 transition-all ${
+                  activeCat === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:border-primary/40"
+                }`}
+              >
+                <span className="mr-1.5">{c.icon}</span>{c.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Grid + AI side panel — suggestions ONLY in the panel, never on the grid */}
         <div className={`grid gap-3 ${suggestion ? "lg:grid-cols-[1fr_18rem]" : "grid-cols-1"}`}>
           <div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 gap-3">
-              {visibleCards.map((card) => {
-                const isSuggested = suggestion && (
-                  suggestion.cards.some((s) => s.id === card.id) ||
-                  suggestion.candidates.some((s) => s.id === card.id)
-                );
-                const highlight = isSuggested
-                  ? "suggested"
-                  : highlights.get(card.id) ?? "normal";
-                return (
-                  <AACCard
-                    key={card.id}
-                    card={card}
-                    onTap={handleTap}
-                    highlight={highlight as any}
-                    signedImageUrl={card.image_url ? signedUrls[card.image_url] : undefined}
-                  />
-                );
-              })}
+              {visibleCards.map((card) => (
+                <AACCard
+                  key={card.id}
+                  card={card}
+                  onTap={handleTap}
+                  highlight="normal"
+                  signedImageUrl={card.image_url ? signedUrls[card.image_url] : undefined}
+                />
+              ))}
             </div>
 
             {visibleCards.length === 0 && (
