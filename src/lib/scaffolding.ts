@@ -101,3 +101,47 @@ export function shouldPromote(
   if (avgLen >= targets[current]) return order[idx + 1];
   return null;
 }
+
+/**
+ * Return up to N candidate next-word cards to display in the AI side panel.
+ * Picks cards that are likely to follow the tapped card given the child's level.
+ */
+export function suggestCandidates(
+  tapped: Card,
+  allCards: Card[],
+  level: ScaffoldLevel,
+  bigrams: Record<string, Record<string, number>>,
+  n = 4,
+): Card[] {
+  if (level === "level_1") return [];
+
+  // Preferred POS for the "next" slot depending on level + tapped POS
+  let preferredPos: Card["part_of_speech"][] = [];
+  if (tapped.part_of_speech === "noun") {
+    if (level === "level_2") preferredPos = ["verb"];
+    else if (level === "level_3") preferredPos = ["adjective", "verb"];
+    else preferredPos = ["verb", "adjective"];
+  } else if (tapped.part_of_speech === "verb") {
+    preferredPos = ["noun", "pronoun"];
+  } else if (tapped.part_of_speech === "phrase" || tapped.part_of_speech === "pronoun") {
+    preferredPos = ["verb", "noun"];
+  } else if (tapped.part_of_speech === "adjective") {
+    preferredPos = ["noun"];
+  }
+
+  const pool = allCards.filter(
+    (c) => c.id !== tapped.id && preferredPos.includes(c.part_of_speech),
+  );
+
+  const after = bigrams[tapped.label] ?? {};
+  const totalAfter = Object.values(after).reduce((a, b) => a + b, 0) || 1;
+
+  const scored = pool.map((c) => {
+    const bigramScore = (after[c.label] ?? 0) / totalAfter;
+    const freq = c.use_count;
+    return { card: c, score: bigramScore * 10 + freq * 0.5 + Math.random() * 0.01 };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, n).map((s) => s.card);
+}
