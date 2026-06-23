@@ -8,6 +8,44 @@ export interface ThemePreset {
   vars: Record<string, string>;
 }
 
+// POS palettes per theme — keeps the Fitzgerald key meaningful while shifting hue
+// to match the overall mood the child picked.
+const POS_CORAL = {
+  "--noun": "oklch(0.84 0.12 60)",
+  "--verb": "oklch(0.8 0.15 150)",
+  "--adjective": "oklch(0.86 0.13 90)",
+  "--phrase": "oklch(0.82 0.11 320)",
+  "--pronoun": "oklch(0.82 0.12 230)",
+};
+const POS_OCEAN = {
+  "--noun": "oklch(0.84 0.1 210)",
+  "--verb": "oklch(0.82 0.13 175)",
+  "--adjective": "oklch(0.88 0.11 95)",
+  "--phrase": "oklch(0.82 0.11 270)",
+  "--pronoun": "oklch(0.82 0.13 240)",
+};
+const POS_CANDY = {
+  "--noun": "oklch(0.86 0.1 30)",
+  "--verb": "oklch(0.84 0.12 150)",
+  "--adjective": "oklch(0.88 0.13 80)",
+  "--phrase": "oklch(0.82 0.13 310)",
+  "--pronoun": "oklch(0.82 0.12 260)",
+};
+const POS_FOREST = {
+  "--noun": "oklch(0.84 0.12 70)",
+  "--verb": "oklch(0.8 0.16 145)",
+  "--adjective": "oklch(0.86 0.13 100)",
+  "--phrase": "oklch(0.8 0.1 200)",
+  "--pronoun": "oklch(0.82 0.11 220)",
+};
+const POS_NIGHT = {
+  "--noun": "oklch(0.55 0.13 60)",
+  "--verb": "oklch(0.55 0.15 150)",
+  "--adjective": "oklch(0.6 0.13 90)",
+  "--phrase": "oklch(0.55 0.13 310)",
+  "--pronoun": "oklch(0.55 0.13 240)",
+};
+
 export const THEMES: ThemePreset[] = [
   {
     id: "coral",
@@ -22,6 +60,7 @@ export const THEMES: ThemePreset[] = [
       "--secondary": "oklch(0.78 0.13 195)",
       "--accent": "oklch(0.86 0.13 90)",
       "--ring": "oklch(0.72 0.16 35)",
+      ...POS_CORAL,
     },
   },
   {
@@ -37,6 +76,7 @@ export const THEMES: ThemePreset[] = [
       "--secondary": "oklch(0.8 0.13 170)",
       "--accent": "oklch(0.86 0.13 90)",
       "--ring": "oklch(0.68 0.15 230)",
+      ...POS_OCEAN,
     },
   },
   {
@@ -52,6 +92,7 @@ export const THEMES: ThemePreset[] = [
       "--secondary": "oklch(0.76 0.14 305)",
       "--accent": "oklch(0.86 0.13 90)",
       "--ring": "oklch(0.74 0.18 350)",
+      ...POS_CANDY,
     },
   },
   {
@@ -67,6 +108,7 @@ export const THEMES: ThemePreset[] = [
       "--secondary": "oklch(0.78 0.12 70)",
       "--accent": "oklch(0.82 0.13 90)",
       "--ring": "oklch(0.68 0.15 145)",
+      ...POS_FOREST,
     },
   },
   {
@@ -90,6 +132,7 @@ export const THEMES: ThemePreset[] = [
       "--secondary": "oklch(0.6 0.14 310)",
       "--accent": "oklch(0.7 0.15 60)",
       "--ring": "oklch(0.74 0.16 270)",
+      ...POS_NIGHT,
     },
   },
 ];
