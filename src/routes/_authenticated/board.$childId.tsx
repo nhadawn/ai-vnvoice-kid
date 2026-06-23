@@ -202,7 +202,21 @@ function BoardPage() {
               <p className="text-xs text-muted-foreground">Mức {child.current_level.replace("level_", "")}</p>
             </div>
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap justify-end">
+            <Button
+              variant={locked ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setLocked((v) => !v);
+                if (!locked) setSuggestion(null);
+                toast.info(locked ? "Đã mở khoá lưới — AI tiếp tục gợi ý" : "Đã khoá lưới — giữ nguyên vị trí thẻ");
+              }}
+              aria-label={locked ? "Mở khoá lưới" : "Khoá lưới"}
+            >
+              {locked ? <Lock className="h-4 w-4 mr-1.5" /> : <LockOpen className="h-4 w-4 mr-1.5" />}
+              {locked ? "Đã khoá" : "Khoá lưới"}
+            </Button>
+            <ThemePicker />
             <AddCardDialog childId={childId} categories={categories} onCreated={refresh} />
             <Link to="/dashboard/$childId" params={{ childId }}>
               <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
@@ -219,17 +233,6 @@ function BoardPage() {
           onRemoveLast={() => setUtterance((u) => u.slice(0, -1))}
         />
 
-        {suggestion && (
-          <div className="rounded-2xl border-2 border-primary/40 bg-primary/5 p-3 flex items-center gap-3 animate-in slide-in-from-top-2">
-            <Lightbulb className="h-5 w-5 text-primary flex-shrink-0" />
-            <div className="flex-1">
-              <div className="text-xs text-muted-foreground">AI gợi ý — chạm thẻ được nhấp nháy:</div>
-              <div className="font-bold">"{suggestion.text}"</div>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setSuggestion(null)}><X className="h-4 w-4" /></Button>
-          </div>
-        )}
-
         {/* Category tabs */}
         <div className="flex gap-2 overflow-x-auto pb-1">
           {categories.map((c) => (
@@ -245,29 +248,67 @@ function BoardPage() {
           ))}
         </div>
 
-        {/* Card grid */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-          {visibleCards.map((card) => {
-            const highlight = suggestion?.cards.some((s) => s.id === card.id)
-              ? "suggested"
-              : highlights.get(card.id) ?? "normal";
-            return (
-              <AACCard
-                key={card.id}
-                card={card}
-                onTap={handleTap}
-                highlight={highlight as any}
-                signedImageUrl={card.image_url ? signedUrls[card.image_url] : undefined}
-              />
-            );
-          })}
-        </div>
+        {/* Grid + AI side panel */}
+        <div className={`grid gap-3 ${suggestion ? "lg:grid-cols-[1fr_18rem]" : "grid-cols-1"}`}>
+          <div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 gap-3">
+              {visibleCards.map((card) => {
+                const isSuggested = suggestion && (
+                  suggestion.cards.some((s) => s.id === card.id) ||
+                  suggestion.candidates.some((s) => s.id === card.id)
+                );
+                const highlight = isSuggested
+                  ? "suggested"
+                  : highlights.get(card.id) ?? "normal";
+                return (
+                  <AACCard
+                    key={card.id}
+                    card={card}
+                    onTap={handleTap}
+                    highlight={highlight as any}
+                    signedImageUrl={card.image_url ? signedUrls[card.image_url] : undefined}
+                  />
+                );
+              })}
+            </div>
 
-        {visibleCards.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            Danh mục này chưa có thẻ. Nhấn "Thêm thẻ" ở trên.
+            {visibleCards.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                Danh mục này chưa có thẻ. Nhấn "Thêm thẻ" ở trên.
+              </div>
+            )}
           </div>
-        )}
+
+          {suggestion && (
+            <aside className="rounded-2xl border-2 border-primary/40 bg-primary/5 p-3 lg:sticky lg:top-24 lg:self-start animate-in slide-in-from-right-2">
+              <div className="flex items-center gap-2 mb-2">
+                <Lightbulb className="h-5 w-5 text-primary" />
+                <div className="flex-1 text-sm font-bold text-primary">AI Giàn giáo</div>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSuggestion(null)}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground mb-1">Gợi ý câu:</div>
+              <div className="font-bold text-base mb-3">"{suggestion.text}"</div>
+              <div className="text-xs text-muted-foreground mb-2">Chạm 1 thẻ tiếp theo:</div>
+              <div className="grid grid-cols-2 gap-2">
+                {suggestion.candidates.slice(0, 4).map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => handleTap(c)}
+                    className="rounded-xl border-2 border-primary/30 bg-card p-2 flex flex-col items-center hover:border-primary hover:scale-105 transition-all aac-suggested"
+                  >
+                    <span className="text-3xl leading-none">{c.emoji ?? "🔲"}</span>
+                    <span className="text-xs font-bold mt-1 line-clamp-1">{c.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-3 italic">
+                Bỏ qua {ignoredCount}/{FAIL_THRESHOLD} lần — AI sẽ tạm ngừng nếu bé không chọn.
+              </div>
+            </aside>
+          )}
+        </div>
       </main>
     </div>
   );
