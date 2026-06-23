@@ -5,11 +5,12 @@ import type { Card, Category, Child, ScaffoldLevel } from "@/lib/aac-types";
 import { AACCard } from "@/components/AACCard";
 import { UtteranceBar } from "@/components/UtteranceBar";
 import { AddCardDialog } from "@/components/AddCardDialog";
+import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart3, Lightbulb, X } from "lucide-react";
+import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen } from "lucide-react";
 import { speak, type Emotion } from "@/lib/tts";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
-import { suggestNext, shouldPromote } from "@/lib/scaffolding";
+import { suggestNext, suggestCandidates, shouldPromote } from "@/lib/scaffolding";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/board/$childId")({
@@ -30,9 +31,10 @@ function BoardPage() {
   const [bigrams, setBigrams] = useState<Record<string, Record<string, number>>>({});
   const [unigrams, setUnigrams] = useState<Record<string, number>>({});
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
-  const [suggestion, setSuggestion] = useState<{ cards: Card[]; text: string; rationale: string } | null>(null);
+  const [suggestion, setSuggestion] = useState<{ cards: Card[]; text: string; rationale: string; candidates: Card[] } | null>(null);
   const [ignoredCount, setIgnoredCount] = useState(0);
   const [scaffoldingPaused, setScaffoldingPaused] = useState(false);
+  const [locked, setLocked] = useState(false);
 
   const refresh = useCallback(async () => {
     const [{ data: childData }, { data: catData }, { data: cardData }, { data: uttData }] = await Promise.all([
@@ -83,8 +85,8 @@ function BoardPage() {
   );
 
   const highlights = useMemo(
-    () => scaffoldingPaused ? new Map() : classifyHighlights(visibleCards, ctx, 3),
-    [visibleCards, ctx, scaffoldingPaused],
+    () => (scaffoldingPaused || locked) ? new Map() : classifyHighlights(visibleCards, ctx, 3),
+    [visibleCards, ctx, scaffoldingPaused, locked],
   );
 
   const emotionForCard = (c: Card): Emotion => {
@@ -136,7 +138,15 @@ function BoardPage() {
     // Build next-level suggestion if child is past level_1 and tap is a noun
     if (child && !scaffoldingPaused) {
       const sug = suggestNext(card, cards, child.current_level);
-      if (sug) setSuggestion({ cards: sug.cards, text: sug.text, rationale: sug.rationale });
+      const candidates = suggestCandidates(card, cards, child.current_level, bigrams, 4);
+      if (sug || candidates.length > 0) {
+        setSuggestion({
+          cards: sug?.cards ?? candidates,
+          text: sug?.text ?? `${card.label} + ...`,
+          rationale: sug?.rationale ?? "Gợi ý từ tiếp theo",
+          candidates,
+        });
+      }
     }
   };
 
