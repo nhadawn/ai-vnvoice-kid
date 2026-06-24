@@ -302,7 +302,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      seed_categories_for_child: {
+        Args: { p_child_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       part_of_speech: "noun" | "verb" | "adjective" | "phrase" | "pronoun"
