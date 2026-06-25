@@ -113,25 +113,34 @@ export function suggestCandidates(
   bigrams: Record<string, Record<string, number>>,
   n = 4,
 ): Card[] {
-  if (level === "level_1") return [];
-
-  // Preferred POS for the "next" slot depending on level + tapped POS
+  // Preferred POS for the "next" slot depending on level + tapped POS.
+  // Even at level_1 we surface light scaffolding so the panel always appears
+  // and the child learns that words combine.
   let preferredPos: Card["part_of_speech"][] = [];
   if (tapped.part_of_speech === "noun") {
-    if (level === "level_2") preferredPos = ["verb"];
+    if (level === "level_1") preferredPos = ["verb", "adjective"];
+    else if (level === "level_2") preferredPos = ["verb", "adjective"];
     else if (level === "level_3") preferredPos = ["adjective", "verb"];
-    else preferredPos = ["verb", "adjective"];
+    else preferredPos = ["verb", "adjective", "phrase"];
   } else if (tapped.part_of_speech === "verb") {
-    preferredPos = ["noun", "pronoun"];
+    preferredPos = ["noun", "pronoun", "adjective"];
   } else if (tapped.part_of_speech === "phrase" || tapped.part_of_speech === "pronoun") {
     preferredPos = ["verb", "noun"];
   } else if (tapped.part_of_speech === "adjective") {
     preferredPos = ["noun"];
+  } else {
+    preferredPos = ["verb", "noun", "adjective"];
   }
 
-  const pool = allCards.filter(
+  let pool = allCards.filter(
     (c) => c.id !== tapped.id && preferredPos.includes(c.part_of_speech),
   );
+
+  // Fallback — if nothing matched the preferred POS, show any other cards
+  // so the panel never collapses to empty.
+  if (pool.length === 0) {
+    pool = allCards.filter((c) => c.id !== tapped.id);
+  }
 
   const after = bigrams[tapped.label] ?? {};
   const totalAfter = Object.values(after).reduce((a, b) => a + b, 0) || 1;
@@ -139,7 +148,8 @@ export function suggestCandidates(
   const scored = pool.map((c) => {
     const bigramScore = (after[c.label] ?? 0) / totalAfter;
     const freq = c.use_count;
-    return { card: c, score: bigramScore * 10 + freq * 0.5 + Math.random() * 0.01 };
+    const sameCat = c.category_id === tapped.category_id ? 1 : 0;
+    return { card: c, score: bigramScore * 10 + freq * 0.5 + sameCat * 0.8 + Math.random() * 0.01 };
   });
 
   scored.sort((a, b) => b.score - a.score);
