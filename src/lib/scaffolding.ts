@@ -70,17 +70,17 @@ export function buildScaffold(
   let rationale = "";
 
   // Decide missing slot in canonical Vietnamese order
-  if (level !== "level_1" && hasNoun && !hasVerb) {
+  if (hasNoun && !hasVerb) {
     // có danh từ, thiếu động từ → thêm động từ trước
     neededPos = ["verb"];
     slot = "before";
     rationale = "Thêm động từ trước danh từ (VD: ăn cơm)";
-  } else if (level !== "level_1" && hasVerb && !hasNoun) {
+  } else if (hasVerb && !hasNoun) {
     // có động từ, thiếu danh từ → thêm danh từ sau
     neededPos = ["noun"];
     slot = "after";
     rationale = "Thêm danh từ làm tân ngữ (VD: ăn cơm)";
-  } else if ((level === "level_4") && !hasSubject && (hasVerb || hasNoun)) {
+  } else if (level === "level_4" && !hasSubject && (hasVerb || hasNoun)) {
     // thiếu chủ ngữ → thêm Con/Mẹ/Con muốn ở đầu
     neededPos = ["pronoun", "phrase"];
     slot = "before";
