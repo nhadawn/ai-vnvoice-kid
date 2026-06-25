@@ -141,15 +141,18 @@ function BoardPage() {
     setUtterance(newUtt);
     await logInteraction(card, wasSuggested);
 
-    // Build next-level suggestion if child is past level_1 and tap is a noun
+    // Always try to surface scaffolding suggestions (works at every level)
     if (child && !scaffoldingPaused) {
       const sug = suggestNext(card, cards, child.current_level);
       const candidates = suggestCandidates(card, cards, child.current_level, bigrams, 4);
       if (sug || candidates.length > 0) {
+        const fallbackText = candidates[0]
+          ? `${card.label} ${candidates[0].label}`
+          : `${card.label} + ...`;
         setSuggestion({
-          cards: sug?.cards ?? candidates,
-          text: sug?.text ?? `${card.label} + ...`,
-          rationale: sug?.rationale ?? "Gợi ý từ tiếp theo",
+          cards: sug?.cards ?? [card, ...candidates.slice(0, 1)],
+          text: sug?.text ?? fallbackText,
+          rationale: sug?.rationale ?? "Gợi ý từ tiếp theo dựa trên ngữ cảnh",
           candidates,
         });
       }
