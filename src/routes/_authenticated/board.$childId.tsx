@@ -291,56 +291,47 @@ function BoardPage() {
           </div>
         )}
 
-        {/* Grid + AI side panel — suggestions ONLY in the panel, never on the grid */}
-        <div className={`grid gap-3 ${suggestion ? "lg:grid-cols-[1fr_18rem]" : "grid-cols-1"}`}>
-          <div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 gap-3">
-              {visibleCards.map((card) => (
+        {/* AI hint banner — appears when scaffolding is active */}
+        {suggestion && (
+          <div className="flex items-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/5 px-3 py-2 animate-in fade-in slide-in-from-top-1">
+            <Lightbulb className="h-4 w-4 text-primary shrink-0" />
+            <div className="flex-1 text-sm">
+              <span className="text-muted-foreground">Thử nói: </span>
+              <span className="font-bold text-primary">"{suggestion.text}"</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground hidden sm:inline">
+              Bỏ qua {ignoredCount}/{FAIL_THRESHOLD}
+            </span>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSuggestion(null)}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
+        {/* Grid — suggested cards are highlighted (ghost) and float to the top */}
+        <div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 gap-3">
+            {visibleCards.map((card) => {
+              const isSuggested = suggestion?.candidateIds.includes(card.id);
+              const isTapped = suggestion?.tappedId === card.id;
+              const highlight: "suggested" | "dim" | "normal" =
+                isSuggested ? "suggested" : suggestion && !isTapped ? "dim" : "normal";
+              return (
                 <AACCard
                   key={card.id}
                   card={card}
                   onTap={handleTap}
-                  highlight="normal"
+                  highlight={highlight}
                   signedImageUrl={card.image_url ? signedUrls[card.image_url] : undefined}
                 />
-              ))}
-            </div>
-
-            {visibleCards.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                Danh mục này chưa có thẻ. Nhấn "Thêm thẻ" ở trên.
-              </div>
-            )}
+              );
+            })}
           </div>
 
-          {suggestion && (
-            <aside className="rounded-2xl border-2 border-primary/40 bg-primary/5 p-3 lg:sticky lg:top-24 lg:self-start animate-in slide-in-from-right-2">
-              <div className="flex items-center gap-2 mb-2">
-                <Lightbulb className="h-5 w-5 text-primary" />
-                <div className="flex-1 text-sm font-bold text-primary">AI Giàn giáo</div>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSuggestion(null)}>
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="text-xs text-muted-foreground mb-1">Gợi ý câu:</div>
-              <div className="font-bold text-base mb-3">"{suggestion.text}"</div>
-              <div className="text-xs text-muted-foreground mb-2">Chạm 1 thẻ tiếp theo:</div>
-              <div className="grid grid-cols-2 gap-2">
-                {suggestion.candidates.slice(0, 4).map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => handleTap(c)}
-                    className="rounded-xl border-2 border-primary/30 bg-card p-2 flex flex-col items-center hover:border-primary hover:scale-105 transition-all aac-suggested"
-                  >
-                    <span className="text-3xl leading-none">{c.emoji ?? "🔲"}</span>
-                    <span className="text-xs font-bold mt-1 line-clamp-1">{c.label}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-3 italic">
-                Bỏ qua {ignoredCount}/{FAIL_THRESHOLD} lần — AI sẽ tạm ngừng nếu bé không chọn.
-              </div>
-            </aside>
+          {visibleCards.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              Danh mục này chưa có thẻ. Nhấn "Thêm thẻ" ở trên.
+            </div>
           )}
         </div>
       </main>
