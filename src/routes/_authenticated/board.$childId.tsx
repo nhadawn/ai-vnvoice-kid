@@ -122,7 +122,7 @@ function BoardPage() {
 
   const handleTap = async (card: Card) => {
     speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) });
-    const wasSuggested = !!(suggestion?.cards.some((c) => c.id === card.id) || suggestion?.candidates.some((c) => c.id === card.id));
+    const wasSuggested = !!suggestion?.candidateIds.includes(card.id);
     if (suggestion && !wasSuggested) {
       // Child ignored the suggestion
       const next = ignoredCount + 1;
@@ -141,19 +141,17 @@ function BoardPage() {
     setUtterance(newUtt);
     await logInteraction(card, wasSuggested);
 
-    // Always try to surface scaffolding suggestions (works at every level)
+    // Always try to surface scaffolding suggestions on the grid itself
     if (child && !scaffoldingPaused) {
       const sug = suggestNext(card, cards, child.current_level);
       const candidates = suggestCandidates(card, cards, child.current_level, bigrams, 4);
-      if (sug || candidates.length > 0) {
-        const fallbackText = candidates[0]
-          ? `${card.label} ${candidates[0].label}`
-          : `${card.label} + ...`;
+      if (candidates.length > 0) {
+        const fallbackText = `${card.label} ${candidates[0].label}`;
         setSuggestion({
-          cards: sug?.cards ?? [card, ...candidates.slice(0, 1)],
+          tappedId: card.id,
+          candidateIds: candidates.map((c) => c.id),
           text: sug?.text ?? fallbackText,
           rationale: sug?.rationale ?? "Gợi ý từ tiếp theo dựa trên ngữ cảnh",
-          candidates,
         });
       }
     }
