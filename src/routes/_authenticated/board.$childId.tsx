@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen, Search, Siren } from "lucide-react";
 import { speak, playSOS, type Emotion } from "@/lib/tts";
-import { buildBigrams, type SmartGridContext } from "@/lib/smart-grid";
-import { suggestNext, suggestCandidates, shouldPromote } from "@/lib/scaffolding";
+import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
+import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/board/$childId")({
@@ -98,7 +98,12 @@ function BoardPage() {
     return [...suggested, ...rest];
   }, [cards, activeCat, search, suggestion, locked]);
 
-  void ctx;
+  // Time-of-day + frequency highlights for the visible grid (used when no
+  // active scaffolding suggestion). Drives morning/evening pattern surfacing.
+  const ambientHighlights = useMemo(
+    () => classifyHighlights(visibleCards, ctx, 4),
+    [visibleCards, ctx],
+  );
 
   const emotionForCard = (c: Card): Emotion => {
     const l = c.label.toLowerCase();
@@ -146,17 +151,16 @@ function BoardPage() {
     setUtterance(newUtt);
     await logInteraction(card, wasSuggested);
 
-    // Always try to surface scaffolding suggestions on the grid itself
+    // Build progressive sentence scaffolding from the WHOLE utterance.
+    // e.g. ăn → "Con ăn" → "Con ăn cơm"
     if (child && !scaffoldingPaused) {
-      const sug = suggestNext(card, cards, child.current_level);
-      const candidates = suggestCandidates(card, cards, child.current_level, bigrams, 4);
-      if (candidates.length > 0) {
-        const fallbackText = `${card.label} ${candidates[0].label}`;
+      const hint = buildScaffold(newUtt, cards, child.current_level, new Date().getHours(), bigrams);
+      if (hint && hint.candidates.length > 0) {
         setSuggestion({
           tappedId: card.id,
-          candidateIds: candidates.map((c) => c.id),
-          text: sug?.text ?? fallbackText,
-          rationale: sug?.rationale ?? "Gợi ý từ tiếp theo dựa trên ngữ cảnh",
+          candidateIds: hint.candidates.map((c) => c.id),
+          text: hint.text,
+          rationale: hint.rationale,
         });
       }
     }
@@ -314,8 +318,12 @@ function BoardPage() {
             {visibleCards.map((card) => {
               const isSuggested = suggestion?.candidateIds.includes(card.id);
               const isTapped = suggestion?.tappedId === card.id;
-              const highlight: "suggested" | "dim" | "normal" =
-                isSuggested ? "suggested" : suggestion && !isTapped ? "dim" : "normal";
+              let highlight: "suggested" | "dim" | "normal";
+              if (suggestion) {
+                highlight = isSuggested ? "suggested" : isTapped ? "normal" : "dim";
+              } else {
+                highlight = ambientHighlights.get(card.id) ?? "normal";
+              }
               return (
                 <AACCard
                   key={card.id}
