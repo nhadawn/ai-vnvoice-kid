@@ -86,13 +86,18 @@ function BoardPage() {
 
   const visibleCards = useMemo(() => {
     const q = normalize(search.trim());
-    return cards.filter((c) => {
+    const filtered = cards.filter((c) => {
       if (q) return normalize(c.label).includes(q);
       return !activeCat || c.category_id === activeCat;
     });
-  }, [cards, activeCat, search]);
+    // Reorder so suggested cards appear first (unless grid is locked or searching)
+    if (locked || q || !suggestion) return filtered;
+    const suggestedSet = new Set(suggestion.candidateIds);
+    const suggested = filtered.filter((c) => suggestedSet.has(c.id));
+    const rest = filtered.filter((c) => !suggestedSet.has(c.id));
+    return [...suggested, ...rest];
+  }, [cards, activeCat, search, suggestion, locked]);
 
-  // No grid highlights — suggestions live only in the right-side AI panel.
   void ctx;
 
   const emotionForCard = (c: Card): Emotion => {
