@@ -1,86 +1,156 @@
-// Scaffolding AI — Progressive Language Suggestion.
-// Given a just-tapped card and the child's current cards, propose pairings
-// (verb+noun, adj+noun, function-phrase) according to the child's scaffold level.
+// Scaffolding AI — Progressive Vietnamese sentence building.
+// Suggests the next slot to fill given the WHOLE current utterance, the
+// child's scaffold level, time of day, and n-gram history.
+//
+// Canonical Vietnamese order: [Chủ ngữ/Cụm] [Động từ] [Danh từ] [Tính từ]
+//   e.g. "ăn"  →  "Con ăn"  →  "Con ăn cơm"  →  "Con muốn ăn cơm"
 
-import type { Card, ScaffoldLevel } from "./aac-types";
+import type { Card, PartOfSpeech, ScaffoldLevel } from "./aac-types";
 
 export interface ScaffoldSuggestion {
-  cards: Card[];                       // ordered cards forming the proposed phrase
-  text: string;                        // human-readable sentence
+  cards: Card[];
+  text: string;
   level: ScaffoldLevel;
-  rationale: string;                   // why this suggestion (for parent dashboard)
+  rationale: string;
 }
 
+export interface ScaffoldHint {
+  candidates: Card[];       // ranked next-word options
+  text: string;             // proposed full sentence using top candidate
+  rationale: string;
+  slot: "before" | "after"; // where the next word fits relative to the utterance
+  neededPos: PartOfSpeech[];
+}
+
+const LEVEL_TARGET_LEN: Record<ScaffoldLevel, number> = {
+  level_1: 1,
+  level_2: 2,
+  level_3: 3,
+  level_4: 4,
+};
+
+function timeBucket(hour: number): "morning" | "noon" | "evening" | "night" {
+  if (hour >= 5 && hour < 11) return "morning";
+  if (hour >= 11 && hour < 15) return "noon";
+  if (hour >= 15 && hour < 20) return "evening";
+  return "night";
+}
+
+const TIME_TAGS: Record<ReturnType<typeof timeBucket>, string[]> = {
+  morning: ["morning", "meal"],
+  noon: ["meal"],
+  evening: ["evening", "meal"],
+  night: ["evening"],
+};
+
 /**
- * Get the next-level suggestion for a tapped card.
- *  Level 1: just the noun (no expansion)
- *  Level 2: verb + noun  (e.g. "Uống Sữa")
- *  Level 3: noun + adjective (e.g. "Sữa Nóng")
- *  Level 4: function-phrase + verb + noun (e.g. "Con muốn Uống Sữa")
+ * Progressive sentence scaffolding driven by the WHOLE utterance.
+ * Returns the next slot to fill plus ranked candidate cards.
  */
-export function suggestNext(
-  tapped: Card,
+export function buildScaffold(
+  utterance: Card[],
   allCards: Card[],
   level: ScaffoldLevel,
-): ScaffoldSuggestion | null {
-  if (level === "level_1") return null;
+  hour: number,
+  bigrams: Record<string, Record<string, number>>,
+): ScaffoldHint | null {
+  if (utterance.length === 0 || level === "level_1") return null;
+  const target = LEVEL_TARGET_LEN[level];
+  if (utterance.length >= target) return null; // already met target length
 
-  const verbs = allCards.filter((c) => c.part_of_speech === "verb");
-  const adjs = allCards.filter((c) => c.part_of_speech === "adjective");
-  const phrases = allCards.filter((c) => c.part_of_speech === "phrase");
+  const has = (pos: PartOfSpeech) => utterance.some((c) => c.part_of_speech === pos);
+  const hasSubject = has("pronoun") || has("phrase");
+  const hasVerb = has("verb");
+  const hasNoun = has("noun");
+  const hasAdj = has("adjective");
+  const last = utterance[utterance.length - 1];
 
-  // Heuristic verb pairing
-  const verbForNoun = (noun: Card): Card | undefined => {
-    const lower = noun.label.toLowerCase();
-    if (/sữa|nước|trà|cà phê/.test(lower)) return verbs.find((v) => v.label === "Uống");
-    if (/cơm|bánh|táo|chuối|kẹo|phở/.test(lower)) return verbs.find((v) => v.label === "Ăn");
-    if (/gấu|xe|bóng|đồ chơi/.test(lower)) return verbs.find((v) => v.label === "Chơi");
-    return verbs.sort((a, b) => b.use_count - a.use_count)[0];
-  };
+  let neededPos: PartOfSpeech[] = [];
+  let slot: "before" | "after" = "after";
+  let rationale = "";
 
-  if (level === "level_2") {
-    if (tapped.part_of_speech !== "noun") return null;
-    const v = verbForNoun(tapped);
-    if (!v) return null;
-    return {
-      cards: [v, tapped],
-      text: `${v.label} ${tapped.label}`,
-      level,
-      rationale: `Khuyến khích cấu trúc Động từ + Danh từ`,
-    };
+  // Decide missing slot in canonical Vietnamese order
+  if (level !== "level_1" && hasNoun && !hasVerb) {
+    // có danh từ, thiếu động từ → thêm động từ trước
+    neededPos = ["verb"];
+    slot = "before";
+    rationale = "Thêm động từ trước danh từ (VD: ăn cơm)";
+  } else if (level !== "level_1" && hasVerb && !hasNoun) {
+    // có động từ, thiếu danh từ → thêm danh từ sau
+    neededPos = ["noun"];
+    slot = "after";
+    rationale = "Thêm danh từ làm tân ngữ (VD: ăn cơm)";
+  } else if ((level === "level_4") && !hasSubject && (hasVerb || hasNoun)) {
+    // thiếu chủ ngữ → thêm Con/Mẹ/Con muốn ở đầu
+    neededPos = ["pronoun", "phrase"];
+    slot = "before";
+    rationale = "Thêm chủ ngữ (Con, Mẹ...) để thành câu đầy đủ";
+  } else if (level === "level_3" && hasNoun && !hasAdj) {
+    neededPos = ["adjective"];
+    slot = "after";
+    rationale = "Thêm tính từ mô tả (VD: sữa nóng)";
+  } else if (last.part_of_speech === "pronoun" || last.part_of_speech === "phrase") {
+    neededPos = ["verb", "noun"];
+    slot = "after";
+    rationale = "Tiếp theo nên là động từ hoặc danh từ";
+  } else if (last.part_of_speech === "verb") {
+    neededPos = ["noun"];
+    slot = "after";
+    rationale = "Thêm danh từ làm tân ngữ";
+  } else if (last.part_of_speech === "noun" && level === "level_3") {
+    neededPos = ["adjective"];
+    slot = "after";
+    rationale = "Thêm tính từ mô tả";
+  } else if (last.part_of_speech === "noun") {
+    neededPos = ["verb", "adjective"];
+    slot = "before";
+    rationale = "Thêm động từ trước danh từ";
+  } else {
+    return null;
   }
 
-  if (level === "level_3") {
-    if (tapped.part_of_speech !== "noun" || adjs.length === 0) return null;
-    const adj = adjs.sort((a, b) => b.use_count - a.use_count)[0];
-    return {
-      cards: [tapped, adj],
-      text: `${tapped.label} ${adj.label}`,
-      level,
-      rationale: `Khuyến khích cấu trúc Danh từ + Tính từ`,
-    };
+  // Pool of candidate cards (exclude ones already in utterance)
+  const usedIds = new Set(utterance.map((c) => c.id));
+  let pool = allCards.filter(
+    (c) => !usedIds.has(c.id) && neededPos.includes(c.part_of_speech),
+  );
+  if (pool.length === 0) {
+    pool = allCards.filter((c) => !usedIds.has(c.id));
   }
 
-  if (level === "level_4") {
-    if (tapped.part_of_speech !== "noun") return null;
-    const phrase = phrases.find((p) => p.label === "Con muốn") ?? phrases[0];
-    const v = verbForNoun(tapped);
-    if (!phrase || !v) return null;
-    return {
-      cards: [phrase, v, tapped],
-      text: `${phrase.label} ${v.label} ${tapped.label}`,
-      level,
-      rationale: `Khuyến khích cụm chức năng đầy đủ`,
-    };
-  }
+  const after = bigrams[last.label] ?? {};
+  const totalAfter = Object.values(after).reduce((a, b) => a + b, 0) || 1;
+  const timeTags = TIME_TAGS[timeBucket(hour)];
 
-  return null;
+  const scored = pool.map((c) => {
+    const bigramScore = (after[c.label] ?? 0) / totalAfter;
+    const freq = c.use_count;
+    const timeBoost = c.context_tags?.some((t) => timeTags.includes(t)) ? 1 : 0;
+    const sameCat = c.category_id === last.category_id ? 1 : 0;
+    return {
+      card: c,
+      score:
+        bigramScore * 10 +
+        freq * 0.4 +
+        timeBoost * 1.5 +
+        sameCat * 0.6 +
+        Math.random() * 0.01,
+    };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  const candidates = scored.slice(0, 4).map((s) => s.card);
+  if (candidates.length === 0) return null;
+
+  // Build the proposed sentence text using the top candidate
+  const labels = utterance.map((c) => c.label);
+  const top = candidates[0].label;
+  const text = slot === "before" ? [top, ...labels].join(" ") : [...labels, top].join(" ");
+
+  return { candidates, text, rationale, slot, neededPos };
 }
 
 /**
  * Decide whether to promote the child's overall scaffold level.
- * Promote when: (a) ≥ N utterances at current level, AND
- *               (b) average word_count meets target for next level.
  */
 export function shouldPromote(
   current: ScaffoldLevel,
@@ -95,17 +165,26 @@ export function shouldPromote(
   const targets: Record<ScaffoldLevel, number> = {
     level_1: 1.3,
     level_2: 1.8,
-    level_3: 2.0,
-    level_4: 3.0,
+    level_3: 2.4,
+    level_4: 3.2,
   };
   if (avgLen >= targets[current]) return order[idx + 1];
   return null;
 }
 
-/**
- * Return up to N candidate next-word cards to display in the AI side panel.
- * Picks cards that are likely to follow the tapped card given the child's level.
- */
+// --- Backward-compat shims (legacy single-card API still imported elsewhere) ---
+
+export function suggestNext(
+  tapped: Card,
+  allCards: Card[],
+  level: ScaffoldLevel,
+): ScaffoldSuggestion | null {
+  const hint = buildScaffold([tapped], allCards, level, new Date().getHours(), {});
+  if (!hint) return null;
+  const cards = hint.slot === "before" ? [hint.candidates[0], tapped] : [tapped, hint.candidates[0]];
+  return { cards, text: hint.text, level, rationale: hint.rationale };
+}
+
 export function suggestCandidates(
   tapped: Card,
   allCards: Card[],
@@ -113,45 +192,6 @@ export function suggestCandidates(
   bigrams: Record<string, Record<string, number>>,
   n = 4,
 ): Card[] {
-  // Preferred POS for the "next" slot depending on level + tapped POS.
-  // Even at level_1 we surface light scaffolding so the panel always appears
-  // and the child learns that words combine.
-  let preferredPos: Card["part_of_speech"][] = [];
-  if (tapped.part_of_speech === "noun") {
-    if (level === "level_1") preferredPos = ["verb", "adjective"];
-    else if (level === "level_2") preferredPos = ["verb", "adjective"];
-    else if (level === "level_3") preferredPos = ["adjective", "verb"];
-    else preferredPos = ["verb", "adjective", "phrase"];
-  } else if (tapped.part_of_speech === "verb") {
-    preferredPos = ["noun", "pronoun", "adjective"];
-  } else if (tapped.part_of_speech === "phrase" || tapped.part_of_speech === "pronoun") {
-    preferredPos = ["verb", "noun"];
-  } else if (tapped.part_of_speech === "adjective") {
-    preferredPos = ["noun"];
-  } else {
-    preferredPos = ["verb", "noun", "adjective"];
-  }
-
-  let pool = allCards.filter(
-    (c) => c.id !== tapped.id && preferredPos.includes(c.part_of_speech),
-  );
-
-  // Fallback — if nothing matched the preferred POS, show any other cards
-  // so the panel never collapses to empty.
-  if (pool.length === 0) {
-    pool = allCards.filter((c) => c.id !== tapped.id);
-  }
-
-  const after = bigrams[tapped.label] ?? {};
-  const totalAfter = Object.values(after).reduce((a, b) => a + b, 0) || 1;
-
-  const scored = pool.map((c) => {
-    const bigramScore = (after[c.label] ?? 0) / totalAfter;
-    const freq = c.use_count;
-    const sameCat = c.category_id === tapped.category_id ? 1 : 0;
-    return { card: c, score: bigramScore * 10 + freq * 0.5 + sameCat * 0.8 + Math.random() * 0.01 };
-  });
-
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, n).map((s) => s.card);
+  const hint = buildScaffold([tapped], allCards, level, new Date().getHours(), bigrams);
+  return hint ? hint.candidates.slice(0, n) : [];
 }
