@@ -11,7 +11,7 @@ import { Plus, Sparkles, LogOut, BarChart3, Grid3x3 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/app")({
-  head: () => ({ meta: [{ title: "Hồ sơ trẻ — AI-AAC" }] }),
+  head: () => ({ meta: [{ title: "Hồ sơ trẻ — AI VNVoice Kid" }] }),
   component: ChildrenList,
 });
 
@@ -62,7 +62,7 @@ function ChildrenList() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Sparkles className="h-5 w-5" />
             </div>
-            <span className="font-bold">AI-AAC</span>
+            <span className="font-bold">AI VNVoice Kid</span>
           </div>
           <Button variant="ghost" size="sm" onClick={handleSignOut}><LogOut className="h-4 w-4 mr-2" />Đăng xuất</Button>
         </div>

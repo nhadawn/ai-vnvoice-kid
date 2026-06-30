@@ -10,7 +10,7 @@ import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Đăng nhập — AI-AAC" }] }),
+  head: () => ({ meta: [{ title: "Đăng nhập — AI VNVoice Kid" }] }),
   component: AuthPage,
 });
 
@@ -75,7 +75,7 @@ function AuthPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Sparkles className="h-5 w-5" />
           </div>
-          <span className="text-xl font-bold">AI-AAC</span>
+          <span className="text-xl font-bold">AI VNVoice Kid</span>
         </Link>
         <div className="rounded-3xl border bg-card p-8 shadow-lg">
           <Tabs defaultValue="signin">

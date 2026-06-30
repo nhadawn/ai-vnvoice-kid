@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Adaptive AI-AAC — Giàn giáo ngôn ngữ cho trẻ" },
+      { title: "AI VNVoice Kid — Giàn giáo ngôn ngữ cho trẻ" },
       { name: "description", content: "Hệ thống giao tiếp thay thế tích hợp AI: gợi ý ngữ pháp tăng dần, số hóa vật thật, dashboard cho phụ huynh." },
     ],
   }),
@@ -33,7 +33,7 @@ function Landing() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Sparkles className="h-5 w-5" />
             </div>
-            <span className="text-lg font-bold tracking-tight">AI-AAC</span>
+            <span className="text-lg font-bold tracking-tight">AI VNVoice Kid</span>
           </div>
           <Link to="/auth"><Button>Bắt đầu</Button></Link>
         </div>

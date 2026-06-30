@@ -8,7 +8,7 @@ import { ArrowLeft, TrendingUp, Brain, Calendar, AlertCircle, Lightbulb } from "
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/dashboard/$childId")({
-  head: () => ({ meta: [{ title: "Báo cáo phát triển — AI-AAC" }] }),
+  head: () => ({ meta: [{ title: "Báo cáo phát triển — AI VNVoice Kid" }] }),
   component: Dashboard,
 });
 
