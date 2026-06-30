@@ -15,7 +15,7 @@ import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/board/$childId")({
-  head: () => ({ meta: [{ title: "Bảng giao tiếp — AI-AAC" }] }),
+  head: () => ({ meta: [{ title: "Bảng giao tiếp — AI VNVoice Kid" }] }),
   component: BoardPage,
 });
 
@@ -201,7 +201,6 @@ function BoardPage() {
         }
       }
     }
-    setUtterance([]);
     setSuggestion(null);
   };
 
