@@ -205,6 +205,18 @@ function BoardPage() {
     setSuggestion(null);
   };
 
+  const handleDeleteCard = async (card: Card) => {
+    if (!confirm(`Xoá thẻ "${card.label}"?`)) return;
+    if (card.image_url) {
+      await supabase.storage.from("card-images").remove([card.image_url]);
+    }
+    const { error } = await supabase.from("cards").delete().eq("id", card.id);
+    if (error) return toast.error("Không xoá được: " + error.message);
+    toast.success(`Đã xoá "${card.label}"`);
+    setCards((cs) => cs.filter((c) => c.id !== card.id));
+    setUtterance((u) => u.filter((c) => c.id !== card.id));
+  };
+
   if (!child) return <div className="p-8 text-center text-muted-foreground">Đang tải...</div>;
 
   return (
