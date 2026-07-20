@@ -355,6 +355,8 @@ function BoardPage() {
                   onTap={handleTap}
                   highlight={highlight}
                   signedImageUrl={card.image_url ? signedUrls[card.image_url] : undefined}
+                  editMode={editMode}
+                  onDelete={handleDeleteCard}
                 />
               );
             })}
