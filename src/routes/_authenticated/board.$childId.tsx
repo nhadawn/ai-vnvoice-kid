@@ -37,6 +37,7 @@ function BoardPage() {
   const [scaffoldingPaused, setScaffoldingPaused] = useState(false);
   const [locked, setLocked] = useState(false);
   const [search, setSearch] = useState("");
+  const [editMode, setEditMode] = useState(false);
 
   const refresh = useCallback(async () => {
     const [{ data: childData }, { data: catData }, { data: cardData }, { data: uttData }] = await Promise.all([
