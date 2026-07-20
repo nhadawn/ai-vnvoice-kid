@@ -383,7 +383,9 @@ function BoardPage() {
                   signedImageUrl={card.image_url ? signedUrls[card.image_url] : undefined}
                   editMode={editMode}
                   onDelete={handleDeleteCard}
+                  onRecord={(c) => setRecorderCard(c)}
                 />
+
               );
             })}
           </div>
