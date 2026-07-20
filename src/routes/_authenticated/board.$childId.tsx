@@ -193,7 +193,10 @@ function BoardPage() {
   const handleSpeak = async () => {
     if (utterance.length === 0) return;
     const text = utterance.map((c) => c.label).join(" ");
-    speak(text, { voice: child?.voice_preference });
+    speakSequence(
+      utterance.map((c) => ({ label: c.label, audioUrl: c.audio_url ? signedAudioUrls[c.audio_url] : null })),
+      { voice: child?.voice_preference, joinText: text },
+    );
 
     // Save as utterance to compute MLU
     if (child) {
