@@ -255,6 +255,18 @@ function BoardPage() {
             </Button>
             <ThemePicker />
             <AddCardDialog childId={childId} categories={categories} onCreated={refresh} />
+            <Button
+              variant={editMode ? "destructive" : "outline"}
+              size="sm"
+              onClick={() => {
+                setEditMode((v) => !v);
+                setSuggestion(null);
+                toast.info(editMode ? "Đã tắt chế độ xoá" : "Chạm vào thẻ để xoá");
+              }}
+              aria-label={editMode ? "Xong" : "Xoá thẻ"}
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />{editMode ? "Xong" : "Xoá thẻ"}
+            </Button>
             <Link to="/dashboard/$childId" params={{ childId }}>
               <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
             </Link>
