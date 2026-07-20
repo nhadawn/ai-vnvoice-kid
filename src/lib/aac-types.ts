@@ -21,6 +21,7 @@ export interface Card {
   context_tags: string[];
   use_count: number;
   last_used_at: string | null;
+  audio_url: string | null;
 }
 
 export interface Child {
