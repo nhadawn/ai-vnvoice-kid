@@ -8,7 +8,7 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen, Search, Siren } from "lucide-react";
+import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen, Search, Siren, Trash2 } from "lucide-react";
 import { speak, playSOS, type Emotion } from "@/lib/tts";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
@@ -37,6 +37,7 @@ function BoardPage() {
   const [scaffoldingPaused, setScaffoldingPaused] = useState(false);
   const [locked, setLocked] = useState(false);
   const [search, setSearch] = useState("");
+  const [editMode, setEditMode] = useState(false);
 
   const refresh = useCallback(async () => {
     const [{ data: childData }, { data: catData }, { data: cardData }, { data: uttData }] = await Promise.all([
@@ -204,6 +205,18 @@ function BoardPage() {
     setSuggestion(null);
   };
 
+  const handleDeleteCard = async (card: Card) => {
+    if (!confirm(`Xoá thẻ "${card.label}"?`)) return;
+    if (card.image_url) {
+      await supabase.storage.from("card-images").remove([card.image_url]);
+    }
+    const { error } = await supabase.from("cards").delete().eq("id", card.id);
+    if (error) return toast.error("Không xoá được: " + error.message);
+    toast.success(`Đã xoá "${card.label}"`);
+    setCards((cs) => cs.filter((c) => c.id !== card.id));
+    setUtterance((u) => u.filter((c) => c.id !== card.id));
+  };
+
   if (!child) return <div className="p-8 text-center text-muted-foreground">Đang tải...</div>;
 
   return (
@@ -242,6 +255,18 @@ function BoardPage() {
             </Button>
             <ThemePicker />
             <AddCardDialog childId={childId} categories={categories} onCreated={refresh} />
+            <Button
+              variant={editMode ? "destructive" : "outline"}
+              size="sm"
+              onClick={() => {
+                setEditMode((v) => !v);
+                setSuggestion(null);
+                toast.info(editMode ? "Đã tắt chế độ xoá" : "Chạm vào thẻ để xoá");
+              }}
+              aria-label={editMode ? "Xong" : "Xoá thẻ"}
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />{editMode ? "Xong" : "Xoá thẻ"}
+            </Button>
             <Link to="/dashboard/$childId" params={{ childId }}>
               <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
             </Link>
@@ -330,6 +355,8 @@ function BoardPage() {
                   onTap={handleTap}
                   highlight={highlight}
                   signedImageUrl={card.image_url ? signedUrls[card.image_url] : undefined}
+                  editMode={editMode}
+                  onDelete={handleDeleteCard}
                 />
               );
             })}
