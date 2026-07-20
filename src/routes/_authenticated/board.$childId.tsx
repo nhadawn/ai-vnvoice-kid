@@ -78,6 +78,21 @@ function BoardPage() {
     });
   }, [cards, signedUrls]);
 
+  // Sign parent-voice audio URLs
+  useEffect(() => {
+    const toSign = cards.filter((c) => c.audio_url && !signedAudioUrls[c.audio_url]).map((c) => c.audio_url!) as string[];
+    if (toSign.length === 0) return;
+    supabase.storage.from("card-audio").createSignedUrls(toSign, 3600).then(({ data }) => {
+      if (!data) return;
+      setSignedAudioUrls((prev) => {
+        const next = { ...prev };
+        data.forEach((d) => { if (d.path && d.signedUrl) next[d.path] = d.signedUrl; });
+        return next;
+      });
+    });
+  }, [cards, signedAudioUrls]);
+
+
   const ctx: SmartGridContext = useMemo(() => ({
     hour: new Date().getHours(),
     recentLabels: utterance.map((c) => c.label).reverse(),
