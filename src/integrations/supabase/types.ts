@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       cards: {
         Row: {
+          audio_url: string | null
           category_id: string | null
           child_id: string
           context_tags: string[] | null
@@ -29,6 +30,7 @@ export type Database = {
           use_count: number
         }
         Insert: {
+          audio_url?: string | null
           category_id?: string | null
           child_id: string
           context_tags?: string[] | null
@@ -42,6 +44,7 @@ export type Database = {
           use_count?: number
         }
         Update: {
+          audio_url?: string | null
           category_id?: string | null
           child_id?: string
           context_tags?: string[] | null
