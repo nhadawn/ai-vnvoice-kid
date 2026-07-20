@@ -287,7 +287,7 @@ function BoardPage() {
               onClick={() => {
                 setEditMode((v) => !v);
                 setSuggestion(null);
-                toast.info(editMode ? "Đã tắt chế độ xoá" : "Chạm vào thẻ để xoá");
+                toast.info(editMode ? "Đã tắt chế độ chỉnh sửa" : "Chạm vào thẻ để ghi âm giọng • X để xoá");
               }}
               aria-label={editMode ? "Xong" : "Xoá thẻ"}
             >
