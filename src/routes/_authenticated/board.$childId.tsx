@@ -291,7 +291,7 @@ function BoardPage() {
               }}
               aria-label={editMode ? "Xong" : "Xoá thẻ"}
             >
-              <Trash2 className="h-4 w-4 mr-1.5" />{editMode ? "Xong" : "Xoá thẻ"}
+              <Trash2 className="h-4 w-4 mr-1.5" />{editMode ? "Xong" : "Sửa / Ghi âm"}
             </Button>
             <Link to="/dashboard/$childId" params={{ childId }}>
               <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
