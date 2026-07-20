@@ -150,7 +150,12 @@ function BoardPage() {
   };
 
   const handleTap = async (card: Card) => {
-    speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) });
+    const audio = card.audio_url ? signedAudioUrls[card.audio_url] : null;
+    if (audio) {
+      playAudioUrl(audio).catch(() => speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) }));
+    } else {
+      speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) });
+    }
     const wasSuggested = !!suggestion?.candidateIds.includes(card.id);
     if (suggestion && !wasSuggested) {
       // Child ignored the suggestion
