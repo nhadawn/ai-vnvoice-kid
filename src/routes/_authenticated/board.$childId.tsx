@@ -397,6 +397,13 @@ function BoardPage() {
           )}
         </div>
       </main>
+      <VoiceRecorderDialog
+        card={recorderCard}
+        open={!!recorderCard}
+        onOpenChange={(v) => { if (!v) setRecorderCard(null); }}
+        onSaved={() => { setSignedAudioUrls({}); refresh(); }}
+      />
     </div>
   );
 }
+
