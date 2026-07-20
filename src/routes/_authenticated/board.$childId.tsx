@@ -8,7 +8,7 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen, Search, Siren } from "lucide-react";
+import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen, Search, Siren, Trash2 } from "lucide-react";
 import { speak, playSOS, type Emotion } from "@/lib/tts";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
