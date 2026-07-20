@@ -73,6 +73,51 @@ export function speak(text: string, opts?: { voice?: VoicePref; emotion?: Emotio
   synth.speak(u);
 }
 
+// Play a recorded parent-voice audio URL. Returns a promise that resolves when it ends.
+export function playAudioUrl(url: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return resolve();
+    try {
+      window.speechSynthesis?.cancel();
+    } catch { /* noop */ }
+    const audio = new Audio(url);
+    audio.onended = () => resolve();
+    audio.onerror = () => reject(new Error("audio error"));
+    audio.play().catch(reject);
+  });
+}
+
+// Speak a sequence: if a card has a recorded audio, play it; otherwise TTS its label.
+export async function speakSequence(
+  items: { label: string; audioUrl?: string | null }[],
+  opts?: { voice?: VoicePref; emotion?: Emotion; joinText?: string },
+) {
+  const hasAnyRecording = items.some((i) => i.audioUrl);
+  if (!hasAnyRecording) {
+    speak(opts?.joinText ?? items.map((i) => i.label).join(" "), opts);
+    return;
+  }
+  for (const it of items) {
+    if (it.audioUrl) {
+      try { await playAudioUrl(it.audioUrl); continue; } catch { /* fallback to TTS */ }
+    }
+    await new Promise<void>((resolve) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return resolve();
+      const voice = pickVoice(opts?.voice ?? "female");
+      if (!voice) { speak(it.label, opts); return resolve(); }
+      const u = new SpeechSynthesisUtterance(it.label);
+      u.lang = "vi-VN";
+      u.voice = voice;
+      const { pitch, rate } = emotionParams(opts?.emotion ?? "neutral");
+      u.pitch = pitch; u.rate = rate; u.volume = 1;
+      u.onend = () => resolve();
+      u.onerror = () => resolve();
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    });
+  }
+}
+
 export function hasVietnameseVoice(): boolean {
   return listVietnameseVoices().length > 0;
 }

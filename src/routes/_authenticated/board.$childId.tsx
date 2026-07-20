@@ -9,7 +9,8 @@ import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen, Search, Siren, Trash2 } from "lucide-react";
-import { speak, playSOS, type Emotion } from "@/lib/tts";
+import { speak, playSOS, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
+import { VoiceRecorderDialog } from "@/components/VoiceRecorderDialog";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
 import { toast } from "sonner";
@@ -38,6 +39,8 @@ function BoardPage() {
   const [locked, setLocked] = useState(false);
   const [search, setSearch] = useState("");
   const [editMode, setEditMode] = useState(false);
+  const [signedAudioUrls, setSignedAudioUrls] = useState<Record<string, string>>({});
+  const [recorderCard, setRecorderCard] = useState<Card | null>(null);
 
   const refresh = useCallback(async () => {
     const [{ data: childData }, { data: catData }, { data: cardData }, { data: uttData }] = await Promise.all([
@@ -74,6 +77,21 @@ function BoardPage() {
       });
     });
   }, [cards, signedUrls]);
+
+  // Sign parent-voice audio URLs
+  useEffect(() => {
+    const toSign = cards.filter((c) => c.audio_url && !signedAudioUrls[c.audio_url]).map((c) => c.audio_url!) as string[];
+    if (toSign.length === 0) return;
+    supabase.storage.from("card-audio").createSignedUrls(toSign, 3600).then(({ data }) => {
+      if (!data) return;
+      setSignedAudioUrls((prev) => {
+        const next = { ...prev };
+        data.forEach((d) => { if (d.path && d.signedUrl) next[d.path] = d.signedUrl; });
+        return next;
+      });
+    });
+  }, [cards, signedAudioUrls]);
+
 
   const ctx: SmartGridContext = useMemo(() => ({
     hour: new Date().getHours(),
@@ -132,7 +150,12 @@ function BoardPage() {
   };
 
   const handleTap = async (card: Card) => {
-    speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) });
+    const audio = card.audio_url ? signedAudioUrls[card.audio_url] : null;
+    if (audio) {
+      playAudioUrl(audio).catch(() => speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) }));
+    } else {
+      speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) });
+    }
     const wasSuggested = !!suggestion?.candidateIds.includes(card.id);
     if (suggestion && !wasSuggested) {
       // Child ignored the suggestion
@@ -170,7 +193,10 @@ function BoardPage() {
   const handleSpeak = async () => {
     if (utterance.length === 0) return;
     const text = utterance.map((c) => c.label).join(" ");
-    speak(text, { voice: child?.voice_preference });
+    speakSequence(
+      utterance.map((c) => ({ label: c.label, audioUrl: c.audio_url ? signedAudioUrls[c.audio_url] : null })),
+      { voice: child?.voice_preference, joinText: text },
+    );
 
     // Save as utterance to compute MLU
     if (child) {
@@ -261,11 +287,11 @@ function BoardPage() {
               onClick={() => {
                 setEditMode((v) => !v);
                 setSuggestion(null);
-                toast.info(editMode ? "Đã tắt chế độ xoá" : "Chạm vào thẻ để xoá");
+                toast.info(editMode ? "Đã tắt chế độ chỉnh sửa" : "Chạm vào thẻ để ghi âm giọng • X để xoá");
               }}
               aria-label={editMode ? "Xong" : "Xoá thẻ"}
             >
-              <Trash2 className="h-4 w-4 mr-1.5" />{editMode ? "Xong" : "Xoá thẻ"}
+              <Trash2 className="h-4 w-4 mr-1.5" />{editMode ? "Xong" : "Sửa / Ghi âm"}
             </Button>
             <Link to="/dashboard/$childId" params={{ childId }}>
               <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
@@ -357,7 +383,9 @@ function BoardPage() {
                   signedImageUrl={card.image_url ? signedUrls[card.image_url] : undefined}
                   editMode={editMode}
                   onDelete={handleDeleteCard}
+                  onRecord={(c) => setRecorderCard(c)}
                 />
+
               );
             })}
           </div>
@@ -369,6 +397,13 @@ function BoardPage() {
           )}
         </div>
       </main>
+      <VoiceRecorderDialog
+        card={recorderCard}
+        open={!!recorderCard}
+        onOpenChange={(v) => { if (!v) setRecorderCard(null); }}
+        onSaved={() => { setSignedAudioUrls({}); refresh(); }}
+      />
     </div>
   );
 }
+
