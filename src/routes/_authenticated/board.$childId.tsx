@@ -123,7 +123,7 @@ function BoardPage() {
     });
     // Reorder so suggested cards appear first (unless grid is locked or searching)
     if (locked || q || !suggestion) return filtered;
-    const suggestedSet = new Set(suggestion.candidateIds);
+    const suggestedSet = new Set(suggestion.candidates.map((c) => c.id));
     const suggested = filtered.filter((c) => suggestedSet.has(c.id));
     const rest = filtered.filter((c) => !suggestedSet.has(c.id));
     return [...suggested, ...rest];
