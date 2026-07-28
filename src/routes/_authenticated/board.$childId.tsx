@@ -70,6 +70,7 @@ function BoardPage() {
       const { bigrams: bg, unigrams: ug } = buildBigrams(uttData as { text: string }[]);
       setBigrams(bg);
       setUnigrams(ug);
+      setRecentUtts(uttData as { word_count: number; level: ScaffoldLevel }[]);
     }
   }, [childId, activeCat]);
 
