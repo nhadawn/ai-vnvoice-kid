@@ -8,12 +8,22 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen, Search, Siren, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Siren, Trash2 } from "lucide-react";
 import { speak, playSOS, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
 import { VoiceRecorderDialog } from "@/components/VoiceRecorderDialog";
+import { ScaffoldPanel } from "@/components/ScaffoldPanel";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
 import { toast } from "sonner";
+
+function timeBucket(hour: number): "morning" | "noon" | "evening" | "night" {
+  if (hour >= 5 && hour < 11) return "morning";
+  if (hour >= 11 && hour < 15) return "noon";
+  if (hour >= 15 && hour < 20) return "evening";
+  return "night";
+}
+
+const LEVEL_PROMO_TARGET = 8;
 
 export const Route = createFileRoute("/_authenticated/board/$childId")({
   head: () => ({ meta: [{ title: "Bảng giao tiếp — AI VNVoice Kid" }] }),
@@ -33,7 +43,8 @@ function BoardPage() {
   const [bigrams, setBigrams] = useState<Record<string, Record<string, number>>>({});
   const [unigrams, setUnigrams] = useState<Record<string, number>>({});
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
-  const [suggestion, setSuggestion] = useState<{ tappedId: string; candidateIds: string[]; text: string; rationale: string } | null>(null);
+  const [suggestion, setSuggestion] = useState<{ tappedId: string; candidates: Card[]; text: string; rationale: string; slot: "before" | "after" } | null>(null);
+  const [recentUtts, setRecentUtts] = useState<{ word_count: number; level: ScaffoldLevel }[]>([]);
   const [ignoredCount, setIgnoredCount] = useState(0);
   const [scaffoldingPaused, setScaffoldingPaused] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -59,6 +70,7 @@ function BoardPage() {
       const { bigrams: bg, unigrams: ug } = buildBigrams(uttData as { text: string }[]);
       setBigrams(bg);
       setUnigrams(ug);
+      setRecentUtts(uttData as { word_count: number; level: ScaffoldLevel }[]);
     }
   }, [childId, activeCat]);
 
@@ -111,7 +123,7 @@ function BoardPage() {
     });
     // Reorder so suggested cards appear first (unless grid is locked or searching)
     if (locked || q || !suggestion) return filtered;
-    const suggestedSet = new Set(suggestion.candidateIds);
+    const suggestedSet = new Set(suggestion.candidates.map((c) => c.id));
     const suggested = filtered.filter((c) => suggestedSet.has(c.id));
     const rest = filtered.filter((c) => !suggestedSet.has(c.id));
     return [...suggested, ...rest];
@@ -156,7 +168,7 @@ function BoardPage() {
     } else {
       speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) });
     }
-    const wasSuggested = !!suggestion?.candidateIds.includes(card.id);
+    const wasSuggested = !!suggestion?.candidates.some((c) => c.id === card.id);
     if (suggestion && !wasSuggested) {
       // Child ignored the suggestion
       const next = ignoredCount + 1;
@@ -182,11 +194,41 @@ function BoardPage() {
       if (hint && hint.candidates.length > 0) {
         setSuggestion({
           tappedId: card.id,
-          candidateIds: hint.candidates.map((c) => c.id),
+          candidates: hint.candidates,
           text: hint.text,
           rationale: hint.rationale,
+          slot: hint.slot,
         });
       }
+    }
+  };
+
+  // Parent taps a candidate in the AI panel — insert it at the correct slot
+  // (before/after) to build a canonical Vietnamese sentence.
+  const handlePickCandidate = async (card: Card) => {
+    if (!suggestion || !child) return;
+    const audio = card.audio_url ? signedAudioUrls[card.audio_url] : null;
+    if (audio) {
+      playAudioUrl(audio).catch(() => speak(card.label, { voice: child.voice_preference, emotion: emotionForCard(card) }));
+    } else {
+      speak(card.label, { voice: child.voice_preference, emotion: emotionForCard(card) });
+    }
+    const newUtt = suggestion.slot === "before" ? [card, ...utterance] : [...utterance, card];
+    setUtterance(newUtt);
+    setIgnoredCount(0);
+    await logInteraction(card, true);
+    // Chain the next scaffolding step
+    const hint = buildScaffold(newUtt, cards, child.current_level, new Date().getHours(), bigrams);
+    if (hint && hint.candidates.length > 0) {
+      setSuggestion({
+        tappedId: card.id,
+        candidates: hint.candidates,
+        text: hint.text,
+        rationale: hint.rationale,
+        slot: hint.slot,
+      });
+    } else {
+      setSuggestion(null);
     }
   };
 
@@ -345,28 +387,30 @@ function BoardPage() {
           </div>
         )}
 
-        {/* AI hint banner — appears when scaffolding is active */}
+        {/* AI Scaffolding panel — progressive sentence + tappable candidates */}
         {suggestion && (
-          <div className="flex items-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/5 px-3 py-2 animate-in fade-in slide-in-from-top-1">
-            <Lightbulb className="h-4 w-4 text-primary shrink-0" />
-            <div className="flex-1 text-sm">
-              <span className="text-muted-foreground">Thử nói: </span>
-              <span className="font-bold text-primary">"{suggestion.text}"</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground hidden sm:inline">
-              Bỏ qua {ignoredCount}/{FAIL_THRESHOLD}
-            </span>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSuggestion(null)}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          <ScaffoldPanel
+            level={child.current_level}
+            progress={{
+              current: recentUtts.filter((u) => u.level === child.current_level).length,
+              target: LEVEL_PROMO_TARGET,
+            }}
+            text={suggestion.text}
+            rationale={suggestion.rationale}
+            candidates={suggestion.candidates}
+            ignoredCount={ignoredCount}
+            failThreshold={FAIL_THRESHOLD}
+            timeBucket={timeBucket(new Date().getHours())}
+            onPickCandidate={handlePickCandidate}
+            onDismiss={() => setSuggestion(null)}
+          />
         )}
 
         {/* Grid — suggested cards are highlighted (ghost) and float to the top */}
         <div>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 gap-3">
             {visibleCards.map((card) => {
-              const isSuggested = suggestion?.candidateIds.includes(card.id);
+              const isSuggested = suggestion?.candidates.some((c) => c.id === card.id);
               const isTapped = suggestion?.tappedId === card.id;
               let highlight: "suggested" | "dim" | "normal";
               if (suggestion) {
