@@ -41,6 +41,7 @@ export function ScaffoldPanel({
   timeBucket,
   onPickCandidate,
   onDismiss,
+  onFeedback,
 }: Props) {
   const pct = Math.min(100, Math.round((progress.current / Math.max(1, progress.target)) * 100));
   return (
