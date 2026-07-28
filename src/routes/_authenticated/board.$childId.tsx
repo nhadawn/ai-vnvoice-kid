@@ -403,6 +403,51 @@ function BoardPage() {
             timeBucket={timeBucket(new Date().getHours())}
             onPickCandidate={handlePickCandidate}
             onDismiss={() => setSuggestion(null)}
+            onFeedback={async (kind) => {
+              if (!suggestion) return;
+              const hour = new Date().getHours();
+              // Log every candidate as a suggestion outcome so AI can learn ranking
+              await supabase.from("interactions").insert(
+                suggestion.candidates.map((c) => ({
+                  child_id: childId,
+                  card_id: c.id,
+                  label: c.label,
+                  part_of_speech: c.part_of_speech,
+                  hour_of_day: hour,
+                  was_suggested: true,
+                  suggestion_accepted: kind === "success",
+                  position_in_utterance: utterance.length,
+                })),
+              );
+              if (kind === "success") {
+                // Boost local bigram from last utterance word → top candidate,
+                // so next scoring prefers this ordering.
+                const last = utterance[utterance.length - 1];
+                const top = suggestion.candidates[0];
+                if (last && top) {
+                  setBigrams((prev) => {
+                    const next = { ...prev };
+                    const row = { ...(next[last.label] ?? {}) };
+                    row[top.label] = (row[top.label] ?? 0) + 3;
+                    next[last.label] = row;
+                    return next;
+                  });
+                }
+                setIgnoredCount(0);
+                toast.success("Cảm ơn — AI sẽ ưu tiên gợi ý tương tự.");
+              } else {
+                const next = ignoredCount + 1;
+                setIgnoredCount(next);
+                if (next >= FAIL_THRESHOLD) {
+                  setScaffoldingPaused(true);
+                  toast.info("AI tạm ngừng gợi ý để bé chủ động hơn.");
+                  setTimeout(() => { setScaffoldingPaused(false); setIgnoredCount(0); }, 60_000);
+                } else {
+                  toast.info("Đã ghi nhận — AI sẽ giảm ưu tiên gợi ý này.");
+                }
+              }
+              setSuggestion(null);
+            }}
           />
         )}
 
