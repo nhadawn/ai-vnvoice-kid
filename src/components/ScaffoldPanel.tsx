@@ -107,6 +107,29 @@ export function ScaffoldPanel({
         </div>
       )}
 
+      {/* Parent feedback — trains AI ranking */}
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-primary/20 pt-2">
+        <span className="text-[11px] text-muted-foreground">
+          Phản hồi để AI học thứ tự gợi ý tốt hơn
+        </span>
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => onFeedback("success")}
+            className="inline-flex items-center gap-1 rounded-full bg-green-500/15 hover:bg-green-500/25 text-green-700 dark:text-green-400 px-2.5 py-1 text-xs font-semibold transition-all active:scale-95"
+            aria-label="Bé đã dùng gợi ý này"
+          >
+            <ThumbsUp className="h-3.5 w-3.5" /> Hữu ích
+          </button>
+          <button
+            onClick={() => onFeedback("skip")}
+            className="inline-flex items-center gap-1 rounded-full bg-muted hover:bg-muted/70 text-muted-foreground px-2.5 py-1 text-xs font-semibold transition-all active:scale-95"
+            aria-label="Bé bỏ qua gợi ý này"
+          >
+            <ThumbsDown className="h-3.5 w-3.5" /> Bỏ qua
+          </button>
+        </div>
+      </div>
+
       {ignoredCount > 0 && (
         <div className="mt-2 text-[11px] text-muted-foreground text-right">
           Bỏ qua {ignoredCount}/{failThreshold} · AI sẽ nghỉ nếu bé bỏ qua nhiều
