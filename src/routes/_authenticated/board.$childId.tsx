@@ -168,7 +168,7 @@ function BoardPage() {
     } else {
       speak(card.label, { voice: child?.voice_preference, emotion: emotionForCard(card) });
     }
-    const wasSuggested = !!suggestion?.candidateIds.includes(card.id);
+    const wasSuggested = !!suggestion?.candidates.some((c) => c.id === card.id);
     if (suggestion && !wasSuggested) {
       // Child ignored the suggestion
       const next = ignoredCount + 1;
@@ -194,11 +194,41 @@ function BoardPage() {
       if (hint && hint.candidates.length > 0) {
         setSuggestion({
           tappedId: card.id,
-          candidateIds: hint.candidates.map((c) => c.id),
+          candidates: hint.candidates,
           text: hint.text,
           rationale: hint.rationale,
+          slot: hint.slot,
         });
       }
+    }
+  };
+
+  // Parent taps a candidate in the AI panel — insert it at the correct slot
+  // (before/after) to build a canonical Vietnamese sentence.
+  const handlePickCandidate = async (card: Card) => {
+    if (!suggestion || !child) return;
+    const audio = card.audio_url ? signedAudioUrls[card.audio_url] : null;
+    if (audio) {
+      playAudioUrl(audio).catch(() => speak(card.label, { voice: child.voice_preference, emotion: emotionForCard(card) }));
+    } else {
+      speak(card.label, { voice: child.voice_preference, emotion: emotionForCard(card) });
+    }
+    const newUtt = suggestion.slot === "before" ? [card, ...utterance] : [...utterance, card];
+    setUtterance(newUtt);
+    setIgnoredCount(0);
+    await logInteraction(card, true);
+    // Chain the next scaffolding step
+    const hint = buildScaffold(newUtt, cards, child.current_level, new Date().getHours(), bigrams);
+    if (hint && hint.candidates.length > 0) {
+      setSuggestion({
+        tappedId: card.id,
+        candidates: hint.candidates,
+        text: hint.text,
+        rationale: hint.rationale,
+        slot: hint.slot,
+      });
+    } else {
+      setSuggestion(null);
     }
   };
 
