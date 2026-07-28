@@ -43,7 +43,8 @@ function BoardPage() {
   const [bigrams, setBigrams] = useState<Record<string, Record<string, number>>>({});
   const [unigrams, setUnigrams] = useState<Record<string, number>>({});
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
-  const [suggestion, setSuggestion] = useState<{ tappedId: string; candidateIds: string[]; text: string; rationale: string } | null>(null);
+  const [suggestion, setSuggestion] = useState<{ tappedId: string; candidates: Card[]; text: string; rationale: string; slot: "before" | "after" } | null>(null);
+  const [recentUtts, setRecentUtts] = useState<{ word_count: number; level: ScaffoldLevel }[]>([]);
   const [ignoredCount, setIgnoredCount] = useState(0);
   const [scaffoldingPaused, setScaffoldingPaused] = useState(false);
   const [locked, setLocked] = useState(false);
