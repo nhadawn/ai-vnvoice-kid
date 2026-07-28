@@ -8,12 +8,22 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, Lightbulb, X, Lock, LockOpen, Search, Siren, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Siren, Trash2 } from "lucide-react";
 import { speak, playSOS, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
 import { VoiceRecorderDialog } from "@/components/VoiceRecorderDialog";
+import { ScaffoldPanel } from "@/components/ScaffoldPanel";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
 import { toast } from "sonner";
+
+function timeBucket(hour: number): "morning" | "noon" | "evening" | "night" {
+  if (hour >= 5 && hour < 11) return "morning";
+  if (hour >= 11 && hour < 15) return "noon";
+  if (hour >= 15 && hour < 20) return "evening";
+  return "night";
+}
+
+const LEVEL_PROMO_TARGET = 8;
 
 export const Route = createFileRoute("/_authenticated/board/$childId")({
   head: () => ({ meta: [{ title: "Bảng giao tiếp — AI VNVoice Kid" }] }),
