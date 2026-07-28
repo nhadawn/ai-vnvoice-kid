@@ -387,28 +387,30 @@ function BoardPage() {
           </div>
         )}
 
-        {/* AI hint banner — appears when scaffolding is active */}
+        {/* AI Scaffolding panel — progressive sentence + tappable candidates */}
         {suggestion && (
-          <div className="flex items-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/5 px-3 py-2 animate-in fade-in slide-in-from-top-1">
-            <Lightbulb className="h-4 w-4 text-primary shrink-0" />
-            <div className="flex-1 text-sm">
-              <span className="text-muted-foreground">Thử nói: </span>
-              <span className="font-bold text-primary">"{suggestion.text}"</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground hidden sm:inline">
-              Bỏ qua {ignoredCount}/{FAIL_THRESHOLD}
-            </span>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSuggestion(null)}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          <ScaffoldPanel
+            level={child.current_level}
+            progress={{
+              current: recentUtts.filter((u) => u.level === child.current_level).length,
+              target: LEVEL_PROMO_TARGET,
+            }}
+            text={suggestion.text}
+            rationale={suggestion.rationale}
+            candidates={suggestion.candidates}
+            ignoredCount={ignoredCount}
+            failThreshold={FAIL_THRESHOLD}
+            timeBucket={timeBucket(new Date().getHours())}
+            onPickCandidate={handlePickCandidate}
+            onDismiss={() => setSuggestion(null)}
+          />
         )}
 
         {/* Grid — suggested cards are highlighted (ghost) and float to the top */}
         <div>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 gap-3">
             {visibleCards.map((card) => {
-              const isSuggested = suggestion?.candidateIds.includes(card.id);
+              const isSuggested = suggestion?.candidates.some((c) => c.id === card.id);
               const isTapped = suggestion?.tappedId === card.id;
               let highlight: "suggested" | "dim" | "normal";
               if (suggestion) {
