@@ -1,5 +1,4 @@
-import { Button } from "@/components/ui/button";
-import { Lightbulb, Sparkles, X, ArrowRight, Clock } from "lucide-react";
+import { Lightbulb, Sparkles, X, ArrowRight, Clock, ThumbsUp, ThumbsDown } from "lucide-react";
 import type { Card, ScaffoldLevel } from "@/lib/aac-types";
 import { LEVEL_DESCRIPTIONS } from "@/lib/aac-types";
 
@@ -14,6 +13,7 @@ interface Props {
   timeBucket: "morning" | "noon" | "evening" | "night";
   onPickCandidate: (card: Card) => void;
   onDismiss: () => void;
+  onFeedback: (kind: "success" | "skip") => void;
 }
 
 const TIME_LABEL: Record<Props["timeBucket"], string> = {
