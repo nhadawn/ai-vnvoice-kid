@@ -160,6 +160,9 @@ function BoardPage() {
   };
 
   const logInteraction = async (card: Card, wasSuggested: boolean) => {
+    // On-device habit memory (time bucket + coarse place)
+    logUsage(childId, card.id, place.id);
+    setHabitTick((t) => t + 1);
     await supabase.from("interactions").insert({
       child_id: childId,
       card_id: card.id,
