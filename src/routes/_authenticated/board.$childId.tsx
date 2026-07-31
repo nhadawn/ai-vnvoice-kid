@@ -8,12 +8,15 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Siren, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Siren, Trash2, MapPin, Clock } from "lucide-react";
 import { speak, playSOS, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
 import { VoiceRecorderDialog } from "@/components/VoiceRecorderDialog";
+import { EditCardDialog } from "@/components/EditCardDialog";
 import { ScaffoldPanel } from "@/components/ScaffoldPanel";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
+import { usePlace } from "@/hooks/use-place";
+import { habitScores, logUsage, timeBucketOf } from "@/lib/context-memory";
 import { toast } from "sonner";
 
 function timeBucket(hour: number): "morning" | "noon" | "evening" | "night" {

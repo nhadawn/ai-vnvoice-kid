@@ -54,6 +54,8 @@ export function scoreCards(
     }
     // Time of day
     s += timeBoost(card, ctx.hour) * 1.5;
+    // Habit: how often this child taps this card at this time / this place
+    s += (ctx.habit?.get(card.id) ?? 0) * 3;
     // N-gram: P(card | prev)
     if (prev) {
       const next = ctx.bigramCounts[prev]?.[card.label] ?? 0;
