@@ -112,12 +112,20 @@ function BoardPage() {
   }, [cards, signedAudioUrls]);
 
 
+  // Habit memory: what this child usually taps at this time & this place
+  const habit = useMemo(
+    () => habitScores(childId, timeBucketOf(new Date().getHours()), place.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [childId, place.id, habitTick],
+  );
+
   const ctx: SmartGridContext = useMemo(() => ({
     hour: new Date().getHours(),
     recentLabels: utterance.map((c) => c.label).reverse(),
     bigramCounts: bigrams,
     unigramCounts: unigrams,
-  }), [utterance, bigrams, unigrams]);
+    habit,
+  }), [utterance, bigrams, unigrams, habit]);
 
   const normalize = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
