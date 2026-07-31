@@ -11,6 +11,8 @@ export interface SmartGridContext {
   recentLabels: string[];             // labels in current utterance, latest first
   bigramCounts: Record<string, Record<string, number>>; // prev -> next -> count
   unigramCounts: Record<string, number>;
+  /** habit score 0..1 per card id for current time bucket + place (optional) */
+  habit?: Map<string, number>;
 }
 
 function timeBucket(hour: number): "morning" | "noon" | "evening" | "night" {
