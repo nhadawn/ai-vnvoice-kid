@@ -491,6 +491,7 @@ function BoardPage() {
                   editMode={editMode}
                   onDelete={handleDeleteCard}
                   onRecord={(c) => setRecorderCard(c)}
+                  onEdit={(c) => setEditCard(c)}
                 />
 
               );
