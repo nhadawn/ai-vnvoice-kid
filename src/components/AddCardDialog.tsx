@@ -1,14 +1,16 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Camera, Loader2, Sparkles, ClipboardPaste, Upload } from "lucide-react";
+import { Plus, Camera, Loader2, Sparkles, ClipboardPaste, Upload, FolderInput } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { fastRemoveBackground, downscaleImage, extractImage, preloadBackgroundRemoval } from "@/lib/image-bg";
+import { IconPicker } from "@/components/IconPicker";
+import { suggestCategory, suggestIcons } from "@/lib/icon-suggest";
 import type { Category, PartOfSpeech } from "@/lib/aac-types";
 
 interface Props {
@@ -36,13 +38,28 @@ export function AddCardDialog({ childId, categories, onCreated }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const rawRef = useRef<File | null>(null);
   const jobRef = useRef(0);
+  const [catTouched, setCatTouched] = useState(false);
+  const [iconTouched, setIconTouched] = useState(false);
+
+  // AI: suggest folder + icon from the word the user types
+  const folderHint = useMemo(() => suggestCategory(label, categories), [label, categories]);
+  useEffect(() => {
+    if (!catTouched && folderHint) setCategoryId(folderHint.categoryId);
+  }, [folderHint, catTouched]);
+  useEffect(() => {
+    if (iconTouched) return;
+    const [best] = suggestIcons(label, 1);
+    if (best) setEmoji(best);
+  }, [label, iconTouched]);
 
   const reset = () => {
     setLabel(""); setEmoji("🆕"); setPos("noun");
     setFile(null); setPreview(null); setCutDone(false); setProgress(0);
     rawRef.current = null;
+    setCatTouched(false); setIconTouched(false);
     setCategoryId(categories[0]?.id ?? "");
   };
+
 
   const runCut = useCallback(async (raw: File, job: number) => {
     setProcessing(true);
@@ -194,8 +211,8 @@ export function AddCardDialog({ childId, categories, onCreated }: Props) {
 
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-1">
-              <Label>Emoji</Label>
-              <Input value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4} className="text-2xl text-center" />
+              <Label>Biểu tượng</Label>
+              <IconPicker value={emoji} onChange={(v) => { setEmoji(v); setIconTouched(true); }} label={label} />
             </div>
             <div className="col-span-2">
               <Label>Tên thẻ</Label>
@@ -218,8 +235,8 @@ export function AddCardDialog({ childId, categories, onCreated }: Props) {
               </Select>
             </div>
             <div>
-              <Label>Danh mục</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
+              <Label>Thư mục</Label>
+              <Select value={categoryId} onValueChange={(v) => { setCategoryId(v); setCatTouched(true); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
@@ -229,6 +246,18 @@ export function AddCardDialog({ childId, categories, onCreated }: Props) {
               </Select>
             </div>
           </div>
+
+          {folderHint && folderHint.categoryId !== categoryId && (
+            <button
+              type="button"
+              onClick={() => { setCategoryId(folderHint.categoryId); setCatTouched(true); }}
+              className="w-full text-left text-xs rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 hover:bg-primary/20 transition flex items-center gap-2"
+            >
+              <FolderInput className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span>AI đề xuất thư mục <b>{folderHint.name}</b> ({Math.round(folderHint.confidence * 100)}%) — chạm để dùng</span>
+            </button>
+          )}
+
 
           <Button type="submit" className="w-full" disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}Lưu thẻ

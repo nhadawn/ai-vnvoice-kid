@@ -8,12 +8,15 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Siren, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Siren, Trash2, MapPin, Clock } from "lucide-react";
 import { speak, playSOS, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
 import { VoiceRecorderDialog } from "@/components/VoiceRecorderDialog";
+import { EditCardDialog } from "@/components/EditCardDialog";
 import { ScaffoldPanel } from "@/components/ScaffoldPanel";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
+import { usePlace } from "@/hooks/use-place";
+import { habitScores, logUsage, timeBucketOf } from "@/lib/context-memory";
 import { toast } from "sonner";
 
 function timeBucket(hour: number): "morning" | "noon" | "evening" | "night" {
@@ -52,6 +55,10 @@ function BoardPage() {
   const [editMode, setEditMode] = useState(false);
   const [signedAudioUrls, setSignedAudioUrls] = useState<Record<string, string>>({});
   const [recorderCard, setRecorderCard] = useState<Card | null>(null);
+  const [editCard, setEditCard] = useState<Card | null>(null);
+  const place = usePlace(true);
+  const [habitTick, setHabitTick] = useState(0);
+
 
   const refresh = useCallback(async () => {
     const [{ data: childData }, { data: catData }, { data: cardData }, { data: uttData }] = await Promise.all([
@@ -105,12 +112,20 @@ function BoardPage() {
   }, [cards, signedAudioUrls]);
 
 
+  // Habit memory: what this child usually taps at this time & this place
+  const habit = useMemo(
+    () => habitScores(childId, timeBucketOf(new Date().getHours()), place.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [childId, place.id, habitTick],
+  );
+
   const ctx: SmartGridContext = useMemo(() => ({
     hour: new Date().getHours(),
     recentLabels: utterance.map((c) => c.label).reverse(),
     bigramCounts: bigrams,
     unigramCounts: unigrams,
-  }), [utterance, bigrams, unigrams]);
+    habit,
+  }), [utterance, bigrams, unigrams, habit]);
 
   const normalize = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -145,6 +160,9 @@ function BoardPage() {
   };
 
   const logInteraction = async (card: Card, wasSuggested: boolean) => {
+    // On-device habit memory (time bucket + coarse place)
+    logUsage(childId, card.id, place.id);
+    setHabitTick((t) => t + 1);
     await supabase.from("interactions").insert({
       child_id: childId,
       card_id: card.id,
@@ -329,7 +347,7 @@ function BoardPage() {
               onClick={() => {
                 setEditMode((v) => !v);
                 setSuggestion(null);
-                toast.info(editMode ? "Đã tắt chế độ chỉnh sửa" : "Chạm vào thẻ để ghi âm giọng • X để xoá");
+                toast.info(editMode ? "Đã tắt chế độ chỉnh sửa" : "Chạm thẻ để ghi âm • ✏️ để sửa ảnh/biểu tượng/thư mục • ✕ để xoá");
               }}
               aria-label={editMode ? "Xong" : "Xoá thẻ"}
             >
@@ -349,6 +367,21 @@ function BoardPage() {
           onClear={() => { setUtterance([]); setSuggestion(null); }}
           onRemoveLast={() => setUtterance((u) => u.slice(0, -1))}
         />
+
+        {/* Context chips — AI surfaces cards by habit + time + place */}
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-medium">
+            <Clock className="h-3.5 w-3.5" />
+            {({ morning: "Buổi sáng", noon: "Buổi trưa", evening: "Buổi chiều", night: "Buổi tối" } as const)[timeBucket(new Date().getHours())]}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-medium">
+            <MapPin className="h-3.5 w-3.5" />
+            {place.status === "ready" ? place.label : place.status === "locating" ? "Đang xác định vị trí..." : "Không dùng vị trí"}
+          </span>
+          <span className="text-muted-foreground">AI gợi ý theo thói quen · thời gian · vị trí</span>
+        </div>
+
+
 
         {/* Search bar */}
         <div className="relative">
@@ -473,6 +506,7 @@ function BoardPage() {
                   editMode={editMode}
                   onDelete={handleDeleteCard}
                   onRecord={(c) => setRecorderCard(c)}
+                  onEdit={(c) => setEditCard(c)}
                 />
 
               );
@@ -491,6 +525,14 @@ function BoardPage() {
         open={!!recorderCard}
         onOpenChange={(v) => { if (!v) setRecorderCard(null); }}
         onSaved={() => { setSignedAudioUrls({}); refresh(); }}
+      />
+      <EditCardDialog
+        card={editCard}
+        categories={categories}
+        open={!!editCard}
+        onOpenChange={(v) => { if (!v) setEditCard(null); }}
+        signedImageUrl={editCard?.image_url ? signedUrls[editCard.image_url] : undefined}
+        onSaved={() => { setSignedUrls({}); refresh(); }}
       />
     </div>
   );

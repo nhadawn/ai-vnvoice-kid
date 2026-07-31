@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { X, Mic } from "lucide-react";
+import { X, Mic, Pencil } from "lucide-react";
 import type { Card, PartOfSpeech } from "@/lib/aac-types";
 
 const POS_BG: Record<PartOfSpeech, string> = {
@@ -18,9 +18,10 @@ interface Props {
   editMode?: boolean;
   onDelete?: (card: Card) => void;
   onRecord?: (card: Card) => void;
+  onEdit?: (card: Card) => void;
 }
 
-export function AACCard({ card, onTap, highlight = "normal", signedImageUrl, editMode, onDelete, onRecord }: Props) {
+export function AACCard({ card, onTap, highlight = "normal", signedImageUrl, editMode, onDelete, onRecord, onEdit }: Props) {
   return (
     <div
       onClick={() => (editMode && onRecord ? onRecord(card) : onTap(card))}
@@ -46,6 +47,17 @@ export function AACCard({ card, onTap, highlight = "normal", signedImageUrl, edi
           <X className="h-4 w-4" />
         </button>
       )}
+      {editMode && onEdit && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onEdit(card); }}
+          className="absolute -bottom-2 -right-2 z-10 h-7 w-7 rounded-full bg-secondary text-secondary-foreground border shadow-md flex items-center justify-center hover:scale-110 transition"
+          aria-label={`Sửa ${card.label}`}
+          title="Sửa thẻ (ảnh, biểu tượng, thư mục)"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
       {editMode && (
         <span
           className={cn(
@@ -58,6 +70,7 @@ export function AACCard({ card, onTap, highlight = "normal", signedImageUrl, edi
           <Mic className="h-4 w-4" />
         </span>
       )}
+
       <div className="flex-1 flex items-center justify-center w-full">
         {signedImageUrl ? (
           <img src={signedImageUrl} alt="" className="max-h-full max-w-full object-contain rounded-lg" />

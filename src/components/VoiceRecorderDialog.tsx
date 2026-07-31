@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Play, Trash2, Save } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Mic, Square, Play, Trash2, Save, Scissors, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { trimSilence } from "@/lib/audio-trim";
 import type { Card } from "@/lib/aac-types";
 
 interface Props {
@@ -19,12 +21,19 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [existingUrl, setExistingUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoTrim, setAutoTrim] = useState(true);
+  const [cleaning, setCleaning] = useState(false);
+  const [trimInfo, setTrimInfo] = useState<{ from: number; to: number } | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  const autoTrimRef = useRef(autoTrim);
+  autoTrimRef.current = autoTrim;
+  const rawRef = useRef<Blob | null>(null);
 
   useEffect(() => {
     if (!open || !card) return;
-    setBlob(null); setPreviewUrl(null); setExistingUrl(null);
+    setBlob(null); setPreviewUrl(null); setExistingUrl(null); setTrimInfo(null);
+    rawRef.current = null;
     if (card.audio_url) {
       supabase.storage.from("card-audio").createSignedUrl(card.audio_url, 3600).then(({ data }) => {
         if (data?.signedUrl) setExistingUrl(data.signedUrl);
@@ -34,18 +43,49 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
 
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
+  const applyClean = async (raw: Blob) => {
+    setCleaning(true);
+    try {
+      const { blob: cleaned, originalMs, trimmedMs } = await trimSilence(raw);
+      setBlob(cleaned);
+      setPreviewUrl(URL.createObjectURL(cleaned));
+      setTrimInfo(originalMs ? { from: originalMs, to: trimmedMs } : null);
+    } catch {
+      setBlob(raw);
+      setPreviewUrl(URL.createObjectURL(raw));
+      setTrimInfo(null);
+    } finally {
+      setCleaning(false);
+    }
+  };
+
+  const toggleTrim = async (v: boolean) => {
+    setAutoTrim(v);
+    const raw = rawRef.current;
+    if (!raw) return;
+    if (v) await applyClean(raw);
+    else {
+      setBlob(raw);
+      setPreviewUrl(URL.createObjectURL(raw));
+      setTrimInfo(null);
+    }
+  };
+
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
       const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
       const rec = new MediaRecorder(stream, { mimeType: mime });
       chunksRef.current = [];
       rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
       rec.onstop = () => {
         const b = new Blob(chunksRef.current, { type: mime });
-        setBlob(b);
-        setPreviewUrl(URL.createObjectURL(b));
+        rawRef.current = b;
         stream.getTracks().forEach((t) => t.stop());
+        if (autoTrimRef.current) void applyClean(b);
+        else { setBlob(b); setPreviewUrl(URL.createObjectURL(b)); }
       };
       recorderRef.current = rec;
       rec.start();
@@ -60,13 +100,14 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
     setRecording(false);
   };
 
+
   const save = async () => {
     if (!card || !blob) return;
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Chưa đăng nhập");
-      const ext = blob.type.includes("mp4") ? "m4a" : "webm";
+      const ext = blob.type.includes("wav") ? "wav" : blob.type.includes("mp4") ? "m4a" : "webm";
       const path = `${user.id}/${card.id}-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("card-audio").upload(path, blob, { contentType: blob.type });
       if (upErr) throw upErr;
@@ -105,6 +146,13 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
           <p className="text-sm text-muted-foreground">
             Ghi âm giọng của bố/mẹ để thay thế giọng máy. Trẻ sẽ nghe giọng của bạn khi chọn thẻ này.
           </p>
+          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Scissors className="h-4 w-4 text-primary" />
+              Tự cắt quãng lặng & chuẩn âm lượng
+            </div>
+            <Switch checked={autoTrim} onCheckedChange={(v) => void toggleTrim(v)} />
+          </div>
           {existingUrl && !previewUrl && (
             <div className="rounded-lg border p-3 space-y-2">
               <div className="text-sm font-medium">Giọng đã ghi:</div>
@@ -126,17 +174,26 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
             )}
           </div>
           <div className="text-center text-sm text-muted-foreground">
-            {recording ? "Đang ghi âm... Nhấn để dừng" : previewUrl ? "Bản ghi mới" : "Nhấn để bắt đầu"}
+            {recording ? "Đang ghi âm... Nhấn để dừng"
+              : cleaning ? <span className="inline-flex items-center gap-1.5"><Loader2 className="h-4 w-4 animate-spin" />Đang cắt quãng lặng...</span>
+              : previewUrl ? "Bản ghi mới" : "Nhấn để bắt đầu"}
           </div>
+          {trimInfo && (
+            <div className="text-center text-xs text-primary font-medium">
+              ✂️ {(trimInfo.from / 1000).toFixed(1)}s → {(trimInfo.to / 1000).toFixed(1)}s
+              {" "}(gọn hơn {Math.max(0, Math.round((1 - trimInfo.to / trimInfo.from) * 100))}%)
+            </div>
+          )}
           {previewUrl && (
             <div className="rounded-lg border p-3 space-y-2">
               <audio controls src={previewUrl} className="w-full" />
-              <Button variant="ghost" size="sm" onClick={() => { setBlob(null); setPreviewUrl(null); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setBlob(null); setPreviewUrl(null); setTrimInfo(null); rawRef.current = null; }}>
                 <Play className="h-4 w-4 mr-1.5" />Ghi lại
               </Button>
             </div>
           )}
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
           <Button onClick={save} disabled={!blob || saving}>

@@ -11,6 +11,8 @@ export interface SmartGridContext {
   recentLabels: string[];             // labels in current utterance, latest first
   bigramCounts: Record<string, Record<string, number>>; // prev -> next -> count
   unigramCounts: Record<string, number>;
+  /** habit score 0..1 per card id for current time bucket + place (optional) */
+  habit?: Map<string, number>;
 }
 
 function timeBucket(hour: number): "morning" | "noon" | "evening" | "night" {
@@ -52,6 +54,8 @@ export function scoreCards(
     }
     // Time of day
     s += timeBoost(card, ctx.hour) * 1.5;
+    // Habit: how often this child taps this card at this time / this place
+    s += (ctx.habit?.get(card.id) ?? 0) * 3;
     // N-gram: P(card | prev)
     if (prev) {
       const next = ctx.bigramCounts[prev]?.[card.label] ?? 0;
