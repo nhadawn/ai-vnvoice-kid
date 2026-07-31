@@ -526,6 +526,14 @@ function BoardPage() {
         onOpenChange={(v) => { if (!v) setRecorderCard(null); }}
         onSaved={() => { setSignedAudioUrls({}); refresh(); }}
       />
+      <EditCardDialog
+        card={editCard}
+        categories={categories}
+        open={!!editCard}
+        onOpenChange={(v) => { if (!v) setEditCard(null); }}
+        signedImageUrl={editCard?.image_url ? signedUrls[editCard.image_url] : undefined}
+        onSaved={() => { setSignedUrls({}); refresh(); }}
+      />
     </div>
   );
 }
