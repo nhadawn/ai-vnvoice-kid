@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Play, Trash2, Save } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Mic, Square, Play, Trash2, Save, Scissors, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { trimSilence } from "@/lib/audio-trim";
 import type { Card } from "@/lib/aac-types";
 
 interface Props {
@@ -19,12 +21,19 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [existingUrl, setExistingUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoTrim, setAutoTrim] = useState(true);
+  const [cleaning, setCleaning] = useState(false);
+  const [trimInfo, setTrimInfo] = useState<{ from: number; to: number } | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  const autoTrimRef = useRef(autoTrim);
+  autoTrimRef.current = autoTrim;
+  const rawRef = useRef<Blob | null>(null);
 
   useEffect(() => {
     if (!open || !card) return;
-    setBlob(null); setPreviewUrl(null); setExistingUrl(null);
+    setBlob(null); setPreviewUrl(null); setExistingUrl(null); setTrimInfo(null);
+    rawRef.current = null;
     if (card.audio_url) {
       supabase.storage.from("card-audio").createSignedUrl(card.audio_url, 3600).then(({ data }) => {
         if (data?.signedUrl) setExistingUrl(data.signedUrl);
@@ -34,18 +43,49 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
 
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
+  const applyClean = async (raw: Blob) => {
+    setCleaning(true);
+    try {
+      const { blob: cleaned, originalMs, trimmedMs } = await trimSilence(raw);
+      setBlob(cleaned);
+      setPreviewUrl(URL.createObjectURL(cleaned));
+      setTrimInfo(originalMs ? { from: originalMs, to: trimmedMs } : null);
+    } catch {
+      setBlob(raw);
+      setPreviewUrl(URL.createObjectURL(raw));
+      setTrimInfo(null);
+    } finally {
+      setCleaning(false);
+    }
+  };
+
+  const toggleTrim = async (v: boolean) => {
+    setAutoTrim(v);
+    const raw = rawRef.current;
+    if (!raw) return;
+    if (v) await applyClean(raw);
+    else {
+      setBlob(raw);
+      setPreviewUrl(URL.createObjectURL(raw));
+      setTrimInfo(null);
+    }
+  };
+
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
       const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
       const rec = new MediaRecorder(stream, { mimeType: mime });
       chunksRef.current = [];
       rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
       rec.onstop = () => {
         const b = new Blob(chunksRef.current, { type: mime });
-        setBlob(b);
-        setPreviewUrl(URL.createObjectURL(b));
+        rawRef.current = b;
         stream.getTracks().forEach((t) => t.stop());
+        if (autoTrimRef.current) void applyClean(b);
+        else { setBlob(b); setPreviewUrl(URL.createObjectURL(b)); }
       };
       recorderRef.current = rec;
       rec.start();
@@ -59,6 +99,7 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
     recorderRef.current?.stop();
     setRecording(false);
   };
+
 
   const save = async () => {
     if (!card || !blob) return;
