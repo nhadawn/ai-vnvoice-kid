@@ -107,7 +107,7 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Chưa đăng nhập");
-      const ext = blob.type.includes("mp4") ? "m4a" : "webm";
+      const ext = blob.type.includes("wav") ? "wav" : blob.type.includes("mp4") ? "m4a" : "webm";
       const path = `${user.id}/${card.id}-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("card-audio").upload(path, blob, { contentType: blob.type });
       if (upErr) throw upErr;
@@ -146,6 +146,13 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
           <p className="text-sm text-muted-foreground">
             Ghi âm giọng của bố/mẹ để thay thế giọng máy. Trẻ sẽ nghe giọng của bạn khi chọn thẻ này.
           </p>
+          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Scissors className="h-4 w-4 text-primary" />
+              Tự cắt quãng lặng & chuẩn âm lượng
+            </div>
+            <Switch checked={autoTrim} onCheckedChange={(v) => void toggleTrim(v)} />
+          </div>
           {existingUrl && !previewUrl && (
             <div className="rounded-lg border p-3 space-y-2">
               <div className="text-sm font-medium">Giọng đã ghi:</div>
@@ -167,17 +174,26 @@ export function VoiceRecorderDialog({ card, open, onOpenChange, onSaved }: Props
             )}
           </div>
           <div className="text-center text-sm text-muted-foreground">
-            {recording ? "Đang ghi âm... Nhấn để dừng" : previewUrl ? "Bản ghi mới" : "Nhấn để bắt đầu"}
+            {recording ? "Đang ghi âm... Nhấn để dừng"
+              : cleaning ? <span className="inline-flex items-center gap-1.5"><Loader2 className="h-4 w-4 animate-spin" />Đang cắt quãng lặng...</span>
+              : previewUrl ? "Bản ghi mới" : "Nhấn để bắt đầu"}
           </div>
+          {trimInfo && (
+            <div className="text-center text-xs text-primary font-medium">
+              ✂️ {(trimInfo.from / 1000).toFixed(1)}s → {(trimInfo.to / 1000).toFixed(1)}s
+              {" "}(gọn hơn {Math.max(0, Math.round((1 - trimInfo.to / trimInfo.from) * 100))}%)
+            </div>
+          )}
           {previewUrl && (
             <div className="rounded-lg border p-3 space-y-2">
               <audio controls src={previewUrl} className="w-full" />
-              <Button variant="ghost" size="sm" onClick={() => { setBlob(null); setPreviewUrl(null); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setBlob(null); setPreviewUrl(null); setTrimInfo(null); rawRef.current = null; }}>
                 <Play className="h-4 w-4 mr-1.5" />Ghi lại
               </Button>
             </div>
           )}
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
           <Button onClick={save} disabled={!blob || saving}>
