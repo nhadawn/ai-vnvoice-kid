@@ -55,6 +55,10 @@ function BoardPage() {
   const [editMode, setEditMode] = useState(false);
   const [signedAudioUrls, setSignedAudioUrls] = useState<Record<string, string>>({});
   const [recorderCard, setRecorderCard] = useState<Card | null>(null);
+  const [editCard, setEditCard] = useState<Card | null>(null);
+  const place = usePlace(true);
+  const [habitTick, setHabitTick] = useState(0);
+
 
   const refresh = useCallback(async () => {
     const [{ data: childData }, { data: catData }, { data: cardData }, { data: uttData }] = await Promise.all([
