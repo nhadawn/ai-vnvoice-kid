@@ -347,7 +347,7 @@ function BoardPage() {
               onClick={() => {
                 setEditMode((v) => !v);
                 setSuggestion(null);
-                toast.info(editMode ? "Đã tắt chế độ chỉnh sửa" : "Chạm vào thẻ để ghi âm giọng • X để xoá");
+                toast.info(editMode ? "Đã tắt chế độ chỉnh sửa" : "Chạm thẻ để ghi âm • ✏️ để sửa ảnh/biểu tượng/thư mục • ✕ để xoá");
               }}
               aria-label={editMode ? "Xong" : "Xoá thẻ"}
             >
