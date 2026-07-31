@@ -368,6 +368,21 @@ function BoardPage() {
           onRemoveLast={() => setUtterance((u) => u.slice(0, -1))}
         />
 
+        {/* Context chips — AI surfaces cards by habit + time + place */}
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-medium">
+            <Clock className="h-3.5 w-3.5" />
+            {({ morning: "Buổi sáng", noon: "Buổi trưa", evening: "Buổi chiều", night: "Buổi tối" } as const)[timeBucket(new Date().getHours())]}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-medium">
+            <MapPin className="h-3.5 w-3.5" />
+            {place.status === "ready" ? place.label : place.status === "locating" ? "Đang xác định vị trí..." : "Không dùng vị trí"}
+          </span>
+          <span className="text-muted-foreground">AI gợi ý theo thói quen · thời gian · vị trí</span>
+        </div>
+
+
+
         {/* Search bar */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
