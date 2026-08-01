@@ -65,17 +65,87 @@ export function habitScores(
   return out;
 }
 
-// --- Coarse place clustering from geolocation (never leaves the device) ---
+// --- Saved places (parents manage them; everything stays on the device) ---
 
-interface KnownPlace { id: string; lat: number; lon: number; label: string }
+export type PlaceKind =
+  | "home" | "school" | "market" | "hospital" | "park" | "restaurant" | "relative" | "other";
 
-function readPlaces(): KnownPlace[] {
+export const PLACE_KINDS: { kind: PlaceKind; label: string; icon: string }[] = [
+  { kind: "home", label: "Nhà", icon: "🏠" },
+  { kind: "school", label: "Trường học", icon: "🏫" },
+  { kind: "market", label: "Chợ / Siêu thị", icon: "🛒" },
+  { kind: "hospital", label: "Bệnh viện / Phòng khám", icon: "🏥" },
+  { kind: "park", label: "Công viên / Sân chơi", icon: "🏞️" },
+  { kind: "restaurant", label: "Nhà hàng / Quán ăn", icon: "🍽️" },
+  { kind: "relative", label: "Nhà người thân", icon: "👨‍👩‍👧" },
+  { kind: "other", label: "Nơi khác", icon: "📍" },
+];
+
+export const placeKindLabel = (kind: PlaceKind) =>
+  PLACE_KINDS.find((k) => k.kind === kind)?.label ?? "Nơi khác";
+export const placeKindIcon = (kind: PlaceKind) =>
+  PLACE_KINDS.find((k) => k.kind === kind)?.icon ?? "📍";
+
+export interface KnownPlace {
+  id: string;
+  label: string;
+  kind: PlaceKind;
+  /** optional written address, for the parent's reference */
+  address?: string;
+  lat?: number;
+  lon?: number;
+  radius?: number; // metres, default 150
+}
+
+const activeKey = "aac-place-active";
+const norm = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").trim();
+
+export function readPlaces(): KnownPlace[] {
   if (typeof localStorage === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(placeKey) ?? "[]") as KnownPlace[];
+    const raw = JSON.parse(localStorage.getItem(placeKey) ?? "[]") as KnownPlace[];
+    return raw.map((p) => ({ ...p, kind: p.kind ?? "other" }));
   } catch {
     return [];
   }
+}
+
+function writePlaces(places: KnownPlace[]) {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(placeKey, JSON.stringify(places));
+}
+
+export function savePlace(place: Omit<KnownPlace, "id"> & { id?: string }): KnownPlace {
+  const places = readPlaces();
+  if (place.id) {
+    const next = places.map((p) => (p.id === place.id ? { ...p, ...place } as KnownPlace : p));
+    writePlaces(next);
+    return next.find((p) => p.id === place.id)!;
+  }
+  const created: KnownPlace = { ...place, id: `place-${Date.now().toString(36)}` };
+  writePlaces([...places, created]);
+  return created;
+}
+
+export function deletePlace(id: string) {
+  writePlaces(readPlaces().filter((p) => p.id !== id));
+  if (getActivePlaceId() === id) setActivePlaceId(null);
+}
+
+export function renamePlace(id: string, label: string) {
+  writePlaces(readPlaces().map((p) => (p.id === id ? { ...p, label } : p)));
+}
+
+/** Manual override: parent pins the current place instead of using GPS. */
+export function getActivePlaceId(): string | null {
+  if (typeof localStorage === "undefined") return null;
+  return localStorage.getItem(activeKey);
+}
+export function setActivePlaceId(id: string | null) {
+  if (typeof localStorage === "undefined") return;
+  if (id) localStorage.setItem(activeKey, id);
+  else localStorage.removeItem(activeKey);
 }
 
 function distanceM(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
@@ -88,19 +158,58 @@ function distanceM(a: { lat: number; lon: number }, b: { lat: number; lon: numbe
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-/** Resolve current coordinates to a stable place id, creating one if new. */
-export function resolvePlace(lat: number, lon: number): { id: string; label: string } {
+/** Resolve current coordinates to a saved place, creating a new one if unknown. */
+export function resolvePlace(lat: number, lon: number): KnownPlace {
   const places = readPlaces();
-  const hit = places.find((p) => distanceM(p, { lat, lon }) < 150);
-  if (hit) return { id: hit.id, label: hit.label };
-  const id = places.length === 0 ? "home" : `place-${places.length + 1}`;
-  const label = places.length === 0 ? "Ở nhà" : `Địa điểm ${places.length + 1}`;
-  const next = [...places, { id, lat, lon, label }];
-  localStorage.setItem(placeKey, JSON.stringify(next));
-  return { id, label };
+  const hit = places
+    .filter((p) => p.lat != null && p.lon != null)
+    .find((p) => distanceM({ lat: p.lat!, lon: p.lon! }, { lat, lon }) < (p.radius ?? 150));
+  if (hit) return hit;
+  const isFirst = places.length === 0;
+  return savePlace({
+    label: isFirst ? "Nhà" : `Địa điểm ${places.length + 1}`,
+    kind: isFirst ? "home" : "other",
+    lat,
+    lon,
+    radius: 150,
+  });
 }
 
-export function renamePlace(id: string, label: string) {
-  const places = readPlaces().map((p) => (p.id === id ? { ...p, label } : p));
-  localStorage.setItem(placeKey, JSON.stringify(places));
+// --- Vocabulary boosting per place kind -------------------------------------
+
+/** Vietnamese keywords typical of each place, used to surface relevant cards. */
+const PLACE_KEYWORDS: Record<PlaceKind, string[]> = {
+  home: ["me", "bo", "ba", "ong", "an", "com", "uong", "sua", "nuoc", "ngu", "tam", "choi", "tivi", "giuong", "nha", "ve nha", "danh rang", "rua tay", "do choi", "gau bong"],
+  school: ["co giao", "thay", "ban", "hoc", "sach", "but", "giay", "mau", "cap sach", "ba lo", "lop", "truong", "doc", "viet", "ve", "hat", "choi", "di hoc", "ghe", "ban"],
+  market: ["mua", "cho", "sieu thi", "tien", "gio", "rau", "thit", "ca", "trung", "sua", "banh", "keo", "trai cay", "tao", "chuoi", "cam", "nuoc", "kem", "con muon", "them"],
+  hospital: ["bac si", "benh vien", "dau", "met", "so", "thuoc", "kim tiem", "kham", "me", "bo", "giup con", "con dau", "khong muon", "cho con", "nuoc", "ngoi", "doi"],
+  park: ["choi", "chay", "nhay", "bong", "xe dap", "cay", "hoa", "la", "chim", "cho", "meo", "nuoc", "kem", "ban", "cong vien", "san choi", "vui", "them", "ve nha", "met"],
+  restaurant: ["an", "uong", "com", "pho", "mi", "nuoc", "sua", "kem", "banh", "thit", "ca", "rau", "bat", "thia", "ngon", "con muon", "them", "het", "cam on", "no"],
+  relative: ["ba", "ong", "co", "chu", "di", "cau", "bac", "anh", "chi", "em", "choi", "an", "uong", "keo", "banh", "chao", "cam on", "tam biet", "ve nha", "vui"],
+  other: [],
+};
+
+/**
+ * Per-card score in [0..1] for the current place kind, based on label keywords.
+ * Cards whose label matches the place's typical vocabulary float to the top.
+ */
+export function placeVocabScores<T extends { id: string; label: string }>(
+  cards: T[],
+  kind: PlaceKind | null,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!kind) return out;
+  const kws = PLACE_KEYWORDS[kind] ?? [];
+  if (kws.length === 0) return out;
+  for (const c of cards) {
+    const q = norm(c.label);
+    let best = 0;
+    for (const kw of kws) {
+      if (q === kw) best = Math.max(best, 1);
+      else if (q.includes(kw) || kw.includes(q)) best = Math.max(best, 0.6);
+    }
+    if (best > 0) out.set(c.id, best);
+  }
+  return out;
 }
+
