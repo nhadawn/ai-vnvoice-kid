@@ -13,6 +13,9 @@ export interface SmartGridContext {
   unigramCounts: Record<string, number>;
   /** habit score 0..1 per card id for current time bucket + place (optional) */
   habit?: Map<string, number>;
+  /** vocabulary relevance 0..1 per card id for the saved place the child is at */
+  placeVocab?: Map<string, number>;
+
 }
 
 function timeBucket(hour: number): "morning" | "noon" | "evening" | "night" {
