@@ -119,13 +119,21 @@ function BoardPage() {
     [childId, place.id, habitTick],
   );
 
+  // Place vocabulary: words typical of where the child is (home / school / ...)
+  const placeVocab = useMemo(
+    () => placeVocabScores(cards, place.kind),
+    [cards, place.kind],
+  );
+
   const ctx: SmartGridContext = useMemo(() => ({
     hour: new Date().getHours(),
     recentLabels: utterance.map((c) => c.label).reverse(),
     bigramCounts: bigrams,
     unigramCounts: unigrams,
     habit,
-  }), [utterance, bigrams, unigrams, habit]);
+    placeVocab,
+  }), [utterance, bigrams, unigrams, habit, placeVocab]);
+
 
   const normalize = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
