@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sparkles, Search } from "lucide-react";
-import { ICON_GROUPS, ALL_ICONS, suggestIcons, norm } from "@/lib/icon-suggest";
+import { suggestIcons } from "@/lib/icon-suggest";
+import { EMOJI_BY_GROUP, searchEmoji } from "@/lib/emoji-search";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -14,13 +15,9 @@ interface Props {
 export function IconPicker({ value, onChange, label }: Props) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const dq = useDeferredValue(q);
   const ai = useMemo(() => suggestIcons(label, 8), [label]);
-  const filtered = useMemo(() => {
-    const nq = norm(q);
-    if (!nq) return null;
-    const hits = suggestIcons(q, 40);
-    return hits.length ? hits : ALL_ICONS;
-  }, [q]);
+  const results = useMemo(() => (dq.trim() ? searchEmoji(dq, 300) : null), [dq]);
 
   const pick = (icon: string) => { onChange(icon); setOpen(false); };
 
@@ -36,12 +33,17 @@ export function IconPicker({ value, onChange, label }: Props) {
             {value || "🔲"}
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 p-3" align="start">
+        <PopoverContent className="w-[22rem] p-3" align="start">
           <div className="relative mb-2">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm biểu tượng..." className="pl-8 h-9" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Tìm bằng tiếng Việt: sữa, chó, xe, mẹ..."
+              className="pl-8 h-9"
+            />
           </div>
-          <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
+          <div className="max-h-80 overflow-y-auto pr-1 space-y-3">
             {ai.length > 0 && !q && (
               <div>
                 <div className="text-xs font-semibold text-primary flex items-center gap-1 mb-1">
@@ -55,21 +57,35 @@ export function IconPicker({ value, onChange, label }: Props) {
                 </div>
               </div>
             )}
-            {filtered ? (
-              <div className="grid grid-cols-8 gap-1">
-                {filtered.map((i, idx) => (
-                  <button key={i + idx} type="button" onClick={() => pick(i)}
-                    className={cn("text-xl h-8 rounded hover:bg-muted", i === value && "ring-2 ring-primary")}>{i}</button>
-                ))}
-              </div>
-            ) : (
-              ICON_GROUPS.map((g) => (
-                <div key={g.name}>
-                  <div className="text-xs font-semibold text-muted-foreground mb-1">{g.name}</div>
+
+            {results ? (
+              results.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-6 text-center">
+                  Không tìm thấy biểu tượng nào cho "{q}".
+                </p>
+              ) : (
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1">
+                    {results.length} kết quả cho "{q}"
+                  </div>
                   <div className="grid grid-cols-8 gap-1">
-                    {g.icons.map((i, idx) => (
-                      <button key={i + idx} type="button" onClick={() => pick(i)}
-                        className={cn("text-xl h-8 rounded hover:bg-muted", i === value && "ring-2 ring-primary")}>{i}</button>
+                    {results.map((e, idx) => (
+                      <button key={e.e + idx} type="button" onClick={() => pick(e.e)} title={e.n}
+                        className={cn("text-xl h-8 rounded hover:bg-muted", e.e === value && "ring-2 ring-primary")}>{e.e}</button>
+                    ))}
+                  </div>
+                </div>
+              )
+            ) : (
+              EMOJI_BY_GROUP.map((g) => (
+                <div key={g.group}>
+                  <div className="text-xs font-semibold text-muted-foreground mb-1 sticky top-0 bg-popover py-0.5">
+                    {g.label} <span className="font-normal">({g.items.length})</span>
+                  </div>
+                  <div className="grid grid-cols-8 gap-1">
+                    {g.items.map((e, idx) => (
+                      <button key={e.e + idx} type="button" onClick={() => pick(e.e)} title={e.n}
+                        className={cn("text-xl h-8 rounded hover:bg-muted", e.e === value && "ring-2 ring-primary")}>{e.e}</button>
                     ))}
                   </div>
                 </div>
