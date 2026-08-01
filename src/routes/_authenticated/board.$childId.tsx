@@ -16,7 +16,8 @@ import { ScaffoldPanel } from "@/components/ScaffoldPanel";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
 import { usePlace } from "@/hooks/use-place";
-import { habitScores, logUsage, timeBucketOf } from "@/lib/context-memory";
+import { habitScores, logUsage, timeBucketOf, placeVocabScores, placeKindIcon } from "@/lib/context-memory";
+import { PlacesDialog } from "@/components/PlacesDialog";
 import { toast } from "sonner";
 
 function timeBucket(hour: number): "morning" | "noon" | "evening" | "night" {
@@ -57,6 +58,7 @@ function BoardPage() {
   const [recorderCard, setRecorderCard] = useState<Card | null>(null);
   const [editCard, setEditCard] = useState<Card | null>(null);
   const place = usePlace(true);
+  const [placesOpen, setPlacesOpen] = useState(false);
   const [habitTick, setHabitTick] = useState(0);
 
 
@@ -325,6 +327,9 @@ function BoardPage() {
             </div>
           </div>
           <div className="flex gap-1.5 flex-wrap justify-end">
+            <Button variant="outline" size="sm" onClick={() => setPlacesOpen(true)}>
+              <MapPin className="h-4 w-4 mr-1.5" />Địa điểm
+            </Button>
             <Button
               variant="destructive"
               size="sm"
@@ -384,8 +389,20 @@ function BoardPage() {
           </span>
           <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-medium">
             <MapPin className="h-3.5 w-3.5" />
-            {place.status === "ready" ? place.label : place.status === "locating" ? "Đang xác định vị trí..." : "Không dùng vị trí"}
+            {place.kind ? `${placeKindIcon(place.kind)} ` : ""}
+            {place.status === "locating"
+              ? "Đang xác định vị trí..."
+              : place.kind
+                ? place.label + (place.status === "manual" ? " (đã ghim)" : "")
+                : "Chưa có địa điểm"}
           </span>
+          <button
+            type="button"
+            onClick={() => setPlacesOpen(true)}
+            className="rounded-full border border-dashed px-2.5 py-1 font-medium hover:bg-muted"
+          >
+            + Quản lý địa điểm
+          </button>
           <span className="text-muted-foreground">AI gợi ý theo thói quen · thời gian · vị trí</span>
         </div>
 
@@ -534,6 +551,8 @@ function BoardPage() {
         onOpenChange={(v) => { if (!v) setRecorderCard(null); }}
         onSaved={() => { setSignedAudioUrls({}); refresh(); }}
       />
+      <PlacesDialog open={placesOpen} onOpenChange={setPlacesOpen} onChanged={() => place.refresh()} />
+
       <EditCardDialog
         card={editCard}
         categories={categories}
