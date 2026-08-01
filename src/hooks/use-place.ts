@@ -1,33 +1,65 @@
-import { useEffect, useState } from "react";
-import { resolvePlace } from "@/lib/context-memory";
+import { useCallback, useEffect, useState } from "react";
+import {
+  getActivePlaceId,
+  readPlaces,
+  resolvePlace,
+  setActivePlaceId,
+  type KnownPlace,
+  type PlaceKind,
+} from "@/lib/context-memory";
 
 export interface PlaceState {
   id: string;
   label: string;
-  status: "idle" | "locating" | "ready" | "denied";
+  kind: PlaceKind | null;
+  status: "idle" | "locating" | "ready" | "denied" | "manual";
+  /** re-run detection / re-read the manual pin */
+  refresh: () => void;
 }
 
-/** Resolves a coarse, on-device place id from geolocation (opt-in per browser). */
+const UNKNOWN = { id: "unknown", label: "Không rõ vị trí", kind: null } as const;
+
+/**
+ * Resolves the current place: a manual pin chosen by the parent wins, otherwise
+ * a coarse on-device match from geolocation against saved places.
+ */
 export function usePlace(enabled = true): PlaceState {
-  const [state, setState] = useState<PlaceState>({ id: "unknown", label: "Không rõ vị trí", status: "idle" });
+  const [state, setState] = useState<Omit<PlaceState, "refresh">>({ ...UNKNOWN, status: "idle" });
+  const [tick, setTick] = useState(0);
+  const refresh = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
-    if (!enabled || typeof navigator === "undefined" || !navigator.geolocation) return;
+    // 1) Manual pin set by the parent
+    const pinned = getActivePlaceId();
+    if (pinned) {
+      const p: KnownPlace | undefined = readPlaces().find((x) => x.id === pinned);
+      if (p) {
+        setState({ id: p.id, label: p.label, kind: p.kind, status: "manual" });
+        return;
+      }
+      setActivePlaceId(null);
+    }
+
+    // 2) Geolocation (opt-in per browser)
+    if (!enabled || typeof navigator === "undefined" || !navigator.geolocation) {
+      setState({ ...UNKNOWN, status: "idle" });
+      return;
+    }
     let cancelled = false;
     setState((s) => ({ ...s, status: "locating" }));
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         if (cancelled) return;
-        const { id, label } = resolvePlace(pos.coords.latitude, pos.coords.longitude);
-        setState({ id, label, status: "ready" });
+        const p = resolvePlace(pos.coords.latitude, pos.coords.longitude);
+        setState({ id: p.id, label: p.label, kind: p.kind, status: "ready" });
       },
       () => {
-        if (!cancelled) setState({ id: "unknown", label: "Không rõ vị trí", status: "denied" });
+        if (!cancelled) setState({ ...UNKNOWN, status: "denied" });
       },
       { maximumAge: 300_000, timeout: 8000, enableHighAccuracy: false },
     );
     return () => { cancelled = true; };
-  }, [enabled]);
+  }, [enabled, tick]);
 
-  return state;
+  return { ...state, refresh };
 }
