@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { SpeechCoach, type CoachWord } from "@/components/SpeechCoach";
-import { ICON_FOR_LABEL } from "@/lib/icon-suggest";
+import { suggestIcons } from "@/lib/icon-suggest";
 
 const searchSchema = z.object({ w: z.string().optional() });
 
@@ -43,7 +43,7 @@ function CoachPage() {
     ? w
         .split("|")
         .filter(Boolean)
-        .map((label) => ({ label, icon: guessIcon(label) }))
+        .map((label: string) => ({ label, icon: guessIcon(label) }))
     : DEFAULT_WORDS;
 
   return (
@@ -66,11 +66,5 @@ function CoachPage() {
 }
 
 function guessIcon(label: string): string {
-  try {
-    const s = ICON_FOR_LABEL?.(label);
-    if (s) return s;
-  } catch {
-    /* fall through */
-  }
-  return "🗣️";
+  return suggestIcons(label, 1)[0] ?? "🗣️";
 }
