@@ -61,6 +61,22 @@ function BoardPage() {
   const [placesOpen, setPlacesOpen] = useState(false);
   const [habitTick, setHabitTick] = useState(0);
 
+  // Auto geofence: announce whenever the detected place changes so the parent
+  // sees the AAC context has switched by itself.
+  const lastAutoPlace = useState<{ id: string | null }>(() => ({ id: null }))[0];
+  useEffect(() => {
+    if (place.status !== "auto") {
+      if (place.status === "away") lastAutoPlace.id = null;
+      return;
+    }
+    if (lastAutoPlace.id === place.id) return;
+    lastAutoPlace.id = place.id;
+    toast.success(`Đã nhận diện: ${place.label}`, {
+      description: "AI tự cập nhật gợi ý từ vựng theo nơi bé đang ở.",
+    });
+  }, [place.status, place.id, place.label, lastAutoPlace]);
+
+
 
   const refresh = useCallback(async () => {
     const [{ data: childData }, { data: catData }, { data: cardData }, { data: uttData }] = await Promise.all([
