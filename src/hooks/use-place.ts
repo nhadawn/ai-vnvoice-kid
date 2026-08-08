@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getActivePlaceId,
+  matchPlace,
   readPlaces,
-  resolvePlace,
   setActivePlaceId,
   type KnownPlace,
   type PlaceKind,
@@ -12,53 +12,83 @@ export interface PlaceState {
   id: string;
   label: string;
   kind: PlaceKind | null;
-  status: "idle" | "locating" | "ready" | "denied" | "manual";
-  /** re-run detection / re-read the manual pin */
+  /**
+   * idle — geolocation off/unsupported
+   * locating — waiting for the first fix
+   * auto — inside a saved geofence, detected automatically
+   * away — we have a fix but no saved place matches
+   * denied — permission refused or position unavailable
+   * manual — parent pinned a place, overrides GPS
+   */
+  status: "idle" | "locating" | "auto" | "away" | "denied" | "manual";
+  /** metres from the matched place centre, when known */
+  distance: number | null;
+  /** re-read the manual pin / restart detection */
   refresh: () => void;
 }
 
 const UNKNOWN = { id: "unknown", label: "Không rõ vị trí", kind: null } as const;
 
 /**
- * Resolves the current place: a manual pin chosen by the parent wins, otherwise
- * a coarse on-device match from geolocation against saved places.
+ * Resolves the current place continuously: a manual pin chosen by the parent
+ * wins, otherwise we watch GPS and geofence-match against saved places, so the
+ * AAC board context updates by itself when the child moves.
  */
 export function usePlace(enabled = true): PlaceState {
-  const [state, setState] = useState<Omit<PlaceState, "refresh">>({ ...UNKNOWN, status: "idle" });
+  const [state, setState] = useState<Omit<PlaceState, "refresh">>({
+    ...UNKNOWN,
+    status: "idle",
+    distance: null,
+  });
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((t) => t + 1), []);
+  const lastId = useRef<string | null>(null);
 
   useEffect(() => {
-    // 1) Manual pin set by the parent
+    // 1) Manual pin set by the parent always wins
     const pinned = getActivePlaceId();
     if (pinned) {
       const p: KnownPlace | undefined = readPlaces().find((x) => x.id === pinned);
       if (p) {
-        setState({ id: p.id, label: p.label, kind: p.kind, status: "manual" });
+        lastId.current = p.id;
+        setState({ id: p.id, label: p.label, kind: p.kind, status: "manual", distance: null });
         return;
       }
       setActivePlaceId(null);
     }
 
-    // 2) Geolocation (opt-in per browser)
+    // 2) Continuous geolocation + geofence matching
     if (!enabled || typeof navigator === "undefined" || !navigator.geolocation) {
-      setState({ ...UNKNOWN, status: "idle" });
+      setState({ ...UNKNOWN, status: "idle", distance: null });
       return;
     }
-    let cancelled = false;
-    setState((s) => ({ ...s, status: "locating" }));
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (cancelled) return;
-        const p = resolvePlace(pos.coords.latitude, pos.coords.longitude);
-        setState({ id: p.id, label: p.label, kind: p.kind, status: "ready" });
-      },
-      () => {
-        if (!cancelled) setState({ ...UNKNOWN, status: "denied" });
-      },
-      { maximumAge: 300_000, timeout: 8000, enableHighAccuracy: false },
+
+    setState((s) => ({ ...s, status: s.status === "idle" ? "locating" : s.status }));
+
+    const apply = (lat: number, lon: number) => {
+      const hit = matchPlace(lat, lon);
+      if (hit) {
+        lastId.current = hit.place.id;
+        setState({
+          id: hit.place.id,
+          label: hit.place.label,
+          kind: hit.place.kind,
+          status: "auto",
+          distance: Math.round(hit.distance),
+        });
+      } else {
+        lastId.current = null;
+        setState({ ...UNKNOWN, label: "Đang ở nơi khác", status: "away", distance: null });
+      }
+    };
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => apply(pos.coords.latitude, pos.coords.longitude),
+      () => setState({ ...UNKNOWN, status: "denied", distance: null }),
+      { enableHighAccuracy: false, maximumAge: 30_000, timeout: 20_000 },
     );
-    return () => { cancelled = true; };
+
+    return () => navigator.geolocation.clearWatch(watchId);
   }, [enabled, tick]);
 
   return { ...state, refresh };
