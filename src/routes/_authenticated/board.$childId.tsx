@@ -387,15 +387,22 @@ function BoardPage() {
             <Clock className="h-3.5 w-3.5" />
             {({ morning: "Buổi sáng", noon: "Buổi trưa", evening: "Buổi chiều", night: "Buổi tối" } as const)[timeBucket(new Date().getHours())]}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-medium">
+          <span className={"inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium " + (place.status === "auto" ? "bg-primary/10 text-primary" : "bg-secondary")}>
             <MapPin className="h-3.5 w-3.5" />
             {place.kind ? `${placeKindIcon(place.kind)} ` : ""}
             {place.status === "locating"
-              ? "Đang xác định vị trí..."
-              : place.kind
-                ? place.label + (place.status === "manual" ? " (đã ghim)" : "")
-                : "Chưa có địa điểm"}
+              ? "Đang tự nhận diện vị trí..."
+              : place.status === "auto"
+                ? `${place.label} · tự nhận diện${place.distance != null ? ` (~${place.distance}m)` : ""}`
+                : place.status === "manual"
+                  ? `${place.label} (đã ghim)`
+                  : place.status === "away"
+                    ? "Đang ở nơi khác"
+                    : place.status === "denied"
+                      ? "Chưa bật định vị"
+                      : "Chưa có địa điểm"}
           </span>
+
           <button
             type="button"
             onClick={() => setPlacesOpen(true)}
