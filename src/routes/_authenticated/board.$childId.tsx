@@ -61,6 +61,22 @@ function BoardPage() {
   const [placesOpen, setPlacesOpen] = useState(false);
   const [habitTick, setHabitTick] = useState(0);
 
+  // Auto geofence: announce whenever the detected place changes so the parent
+  // sees the AAC context has switched by itself.
+  const lastAutoPlace = useState<{ id: string | null }>(() => ({ id: null }))[0];
+  useEffect(() => {
+    if (place.status !== "auto") {
+      if (place.status === "away") lastAutoPlace.id = null;
+      return;
+    }
+    if (lastAutoPlace.id === place.id) return;
+    lastAutoPlace.id = place.id;
+    toast.success(`Đã nhận diện: ${place.label}`, {
+      description: "AI tự cập nhật gợi ý từ vựng theo nơi bé đang ở.",
+    });
+  }, [place.status, place.id, place.label, lastAutoPlace]);
+
+
 
   const refresh = useCallback(async () => {
     const [{ data: childData }, { data: catData }, { data: cardData }, { data: uttData }] = await Promise.all([
@@ -387,15 +403,22 @@ function BoardPage() {
             <Clock className="h-3.5 w-3.5" />
             {({ morning: "Buổi sáng", noon: "Buổi trưa", evening: "Buổi chiều", night: "Buổi tối" } as const)[timeBucket(new Date().getHours())]}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-medium">
+          <span className={"inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium " + (place.status === "auto" ? "bg-primary/10 text-primary" : "bg-secondary")}>
             <MapPin className="h-3.5 w-3.5" />
             {place.kind ? `${placeKindIcon(place.kind)} ` : ""}
             {place.status === "locating"
-              ? "Đang xác định vị trí..."
-              : place.kind
-                ? place.label + (place.status === "manual" ? " (đã ghim)" : "")
-                : "Chưa có địa điểm"}
+              ? "Đang tự nhận diện vị trí..."
+              : place.status === "auto"
+                ? `${place.label} · tự nhận diện${place.distance != null ? ` (~${place.distance}m)` : ""}`
+                : place.status === "manual"
+                  ? `${place.label} (đã ghim)`
+                  : place.status === "away"
+                    ? "Đang ở nơi khác"
+                    : place.status === "denied"
+                      ? "Chưa bật định vị"
+                      : "Chưa có địa điểm"}
           </span>
+
           <button
             type="button"
             onClick={() => setPlacesOpen(true)}

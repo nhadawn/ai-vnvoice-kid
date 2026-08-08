@@ -213,3 +213,28 @@ export function placeVocabScores<T extends { id: string; label: string }>(
   return out;
 }
 
+
+// --- Automatic geofence matching ---------------------------------------------
+
+export interface PlaceMatch {
+  place: KnownPlace;
+  /** metres from the saved centre */
+  distance: number;
+}
+
+/**
+ * Match live coordinates against saved places (geofence).
+ * Read-only: never creates a place, so it is safe to call continuously.
+ * Returns the closest place whose radius contains the point.
+ */
+export function matchPlace(lat: number, lon: number): PlaceMatch | null {
+  let best: PlaceMatch | null = null;
+  for (const p of readPlaces()) {
+    if (p.lat == null || p.lon == null) continue;
+    const distance = distanceM({ lat: p.lat, lon: p.lon }, { lat, lon });
+    if (distance <= (p.radius ?? 150) && (!best || distance < best.distance)) {
+      best = { place: p, distance };
+    }
+  }
+  return best;
+}
