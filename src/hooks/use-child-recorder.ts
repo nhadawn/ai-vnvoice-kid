@@ -24,6 +24,7 @@ export function useChildRecorder() {
   const ctxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number | null>(null);
   const startedAt = useRef(0);
+  const voicedRef = useRef(false);
 
   const cleanup = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -51,6 +52,7 @@ export function useChildRecorder() {
       streamRef.current = stream;
       chunksRef.current = [];
       setVoiced(false);
+      voicedRef.current = false;
 
       const rec = new MediaRecorder(stream);
       rec.ondataavailable = (e) => {
@@ -77,7 +79,7 @@ export function useChildRecorder() {
         for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
         const rms = Math.sqrt(sum / buf.length);
         setLevel(Math.min(1, rms * 6));
-        if (rms > 0.045) setVoiced(true);
+        if (rms > 0.045) { voicedRef.current = true; setVoiced(true); }
         rafRef.current = requestAnimationFrame(tick);
       };
       rafRef.current = requestAnimationFrame(tick);
@@ -118,5 +120,5 @@ export function useChildRecorder() {
     }
   }, [cleanup]);
 
-  return { start, stop, recording, level, voiced, supported };
+  return { start, stop, recording, level, voiced, voicedRef, supported };
 }
