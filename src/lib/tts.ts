@@ -24,11 +24,24 @@ export function listVietnameseVoices(): SpeechSynthesisVoice[] {
   return getVoices().filter((v) => v.lang.toLowerCase().startsWith("vi"));
 }
 
+// Prefer higher-fidelity engines (neural/online voices articulate tones better).
+function voiceQuality(v: SpeechSynthesisVoice): number {
+  const n = v.name.toLowerCase();
+  let s = 0;
+  if (n.includes("natural") || n.includes("neural")) s += 4;
+  if (n.includes("google")) s += 3;
+  if (n.includes("microsoft")) s += 2;
+  if (n.includes("premium") || n.includes("enhanced")) s += 2;
+  if (!v.localService) s += 1; // cloud voices are usually clearer
+  if (n.includes("compact") || n.includes("espeak")) s -= 3;
+  return s;
+}
+
 function pickVoice(pref: VoicePref): SpeechSynthesisVoice | null {
-  const viVoices = listVietnameseVoices();
+  const viVoices = [...listVietnameseVoices()].sort((a, b) => voiceQuality(b) - voiceQuality(a));
   if (viVoices.length === 0) return null; // strict: never use non-VN voice
-  const femaleHints = ["female", "nữ", "linh", "thu", "hoai", "an", "hoa", "mai"];
-  const maleHints = ["male", "nam", "quang", "minh", "tuan", "duc"];
+  const femaleHints = ["female", "nữ", "linh", "thu", "hoai", "an", "hoa", "mai", "hoaimy", "namminh"];
+  const maleHints = ["male", "nam", "quang", "minh", "tuan", "duc", "nammminh"];
   const hints = pref === "female" ? femaleHints : maleHints;
   const matched = viVoices.find((v) => hints.some((h) => v.name.toLowerCase().includes(h)));
   if (matched) return matched;
@@ -37,14 +50,26 @@ function pickVoice(pref: VoicePref): SpeechSynthesisVoice | null {
 }
 
 function emotionParams(emotion: Emotion): { pitch: number; rate: number } {
-  // Keep pitch/rate close to 1.0 — large deviations distort Vietnamese tones.
+  // Slower than 1.0 so each Vietnamese syllable & tone is fully articulated,
+  // pitch kept near 1.0 to avoid distorting tones ("tròn vành rõ chữ").
   switch (emotion) {
-    case "happy": return { pitch: 1.1, rate: 1.0 };
-    case "sad":   return { pitch: 0.95, rate: 0.92 };
-    case "pain":  return { pitch: 0.9, rate: 0.9 };
-    default:      return { pitch: 1.0, rate: 1.0 };
+    case "happy": return { pitch: 1.05, rate: 0.86 };
+    case "sad":   return { pitch: 0.96, rate: 0.8 };
+    case "pain":  return { pitch: 0.94, rate: 0.8 };
+    default:      return { pitch: 1.0, rate: 0.84 };
   }
 }
+
+/**
+ * Make articulation clearer: normalize whitespace and insert light pauses
+ * between words so syllables are not slurred together.
+ */
+function clarify(text: string): string {
+  const words = text.trim().replace(/\s+/g, " ").split(" ").filter(Boolean);
+  if (words.length <= 1) return words.join(" ");
+  return words.join(", ") + ".";
+}
+
 
 export function speak(text: string, opts?: { voice?: VoicePref; emotion?: Emotion }) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -63,14 +88,16 @@ export function speak(text: string, opts?: { voice?: VoicePref; emotion?: Emotio
     }
     return; // strict: do not speak with a non-Vietnamese voice
   }
-  const u = new SpeechSynthesisUtterance(text);
+  const u = new SpeechSynthesisUtterance(clarify(text));
   u.lang = "vi-VN";
   u.voice = voice;
   const { pitch, rate } = emotionParams(opts?.emotion ?? "neutral");
   u.pitch = pitch;
   u.rate = rate;
   u.volume = 1;
+  if (synth.paused) synth.resume();
   synth.speak(u);
+
 }
 
 // Play a recorded parent-voice audio URL. Returns a promise that resolves when it ends.
@@ -105,16 +132,17 @@ export async function speakSequence(
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return resolve();
       const voice = pickVoice(opts?.voice ?? "female");
       if (!voice) { speak(it.label, opts); return resolve(); }
-      const u = new SpeechSynthesisUtterance(it.label);
+      const u = new SpeechSynthesisUtterance(clarify(it.label));
       u.lang = "vi-VN";
       u.voice = voice;
       const { pitch, rate } = emotionParams(opts?.emotion ?? "neutral");
       u.pitch = pitch; u.rate = rate; u.volume = 1;
-      u.onend = () => resolve();
+      u.onend = () => setTimeout(resolve, 120); // short breath between words
       u.onerror = () => resolve();
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(u);
     });
+
   }
 }
 

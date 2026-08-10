@@ -6,9 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Plus, Sparkles, LogOut, BarChart3, Grid3x3 } from "lucide-react";
+import { Plus, Sparkles, LogOut, BarChart3, Grid3x3, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Hồ sơ trẻ — AI VNVoice Kid" }] }),
@@ -49,10 +55,25 @@ function ChildrenList() {
     load();
   };
 
+  const handleDelete = async (child: Child) => {
+    // Remove stored images/audio of this child (best effort), then the profile.
+    for (const bucket of ["card-images", "card-audio"]) {
+      const { data: files } = await supabase.storage.from(bucket).list(child.id);
+      if (files?.length) {
+        await supabase.storage.from(bucket).remove(files.map((f) => `${child.id}/${f.name}`));
+      }
+    }
+    const { error } = await supabase.from("children").delete().eq("id", child.id);
+    if (error) return toast.error(error.message);
+    toast.success(`Đã xoá hồ sơ của ${child.name}`);
+    load();
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     nav({ to: "/" });
   };
+
 
   return (
     <div className="min-h-screen">
@@ -126,7 +147,29 @@ function ChildrenList() {
                   <Link to="/dashboard/$childId" params={{ childId: c.id }}>
                     <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4" /></Button>
                   </Link>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" aria-label={`Xoá hồ sơ ${c.name}`} className="text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Xoá hồ sơ {c.name}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Toàn bộ thẻ từ vựng, ghi âm, câu đã tạo và dữ liệu tiến trình của {c.name} sẽ bị xoá vĩnh viễn. Hành động này không thể hoàn tác.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(c)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Xoá hồ sơ
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
+
               </div>
             ))}
           </div>
