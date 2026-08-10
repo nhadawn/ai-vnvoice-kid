@@ -155,14 +155,15 @@ function ChildrenList() {
 
         {loading ? (
           <div className="text-center py-12 text-muted-foreground">Đang tải...</div>
-        ) : children.length === 0 ? (
+        ) : children.filter((c) => !pending.has(c.id)).length === 0 ? (
           <div className="rounded-3xl border-2 border-dashed p-12 text-center">
             <p className="text-muted-foreground mb-4">Chưa có hồ sơ trẻ nào. Hãy thêm trẻ đầu tiên.</p>
             <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />Thêm trẻ</Button>
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {children.map((c) => (
+            {children.filter((c) => !pending.has(c.id)).map((c) => (
+
               <div key={c.id} className="rounded-3xl border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 text-3xl">
                   👶
