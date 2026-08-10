@@ -132,16 +132,17 @@ export async function speakSequence(
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return resolve();
       const voice = pickVoice(opts?.voice ?? "female");
       if (!voice) { speak(it.label, opts); return resolve(); }
-      const u = new SpeechSynthesisUtterance(it.label);
+      const u = new SpeechSynthesisUtterance(clarify(it.label));
       u.lang = "vi-VN";
       u.voice = voice;
       const { pitch, rate } = emotionParams(opts?.emotion ?? "neutral");
       u.pitch = pitch; u.rate = rate; u.volume = 1;
-      u.onend = () => resolve();
+      u.onend = () => setTimeout(resolve, 120); // short breath between words
       u.onerror = () => resolve();
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(u);
     });
+
   }
 }
 
