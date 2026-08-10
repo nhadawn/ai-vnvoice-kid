@@ -55,10 +55,25 @@ function ChildrenList() {
     load();
   };
 
+  const handleDelete = async (child: Child) => {
+    // Remove stored images/audio of this child (best effort), then the profile.
+    for (const bucket of ["card-images", "card-audio"]) {
+      const { data: files } = await supabase.storage.from(bucket).list(child.id);
+      if (files?.length) {
+        await supabase.storage.from(bucket).remove(files.map((f) => `${child.id}/${f.name}`));
+      }
+    }
+    const { error } = await supabase.from("children").delete().eq("id", child.id);
+    if (error) return toast.error(error.message);
+    toast.success(`Đã xoá hồ sơ của ${child.name}`);
+    load();
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     nav({ to: "/" });
   };
+
 
   return (
     <div className="min-h-screen">
