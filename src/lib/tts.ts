@@ -88,14 +88,16 @@ export function speak(text: string, opts?: { voice?: VoicePref; emotion?: Emotio
     }
     return; // strict: do not speak with a non-Vietnamese voice
   }
-  const u = new SpeechSynthesisUtterance(text);
+  const u = new SpeechSynthesisUtterance(clarify(text));
   u.lang = "vi-VN";
   u.voice = voice;
   const { pitch, rate } = emotionParams(opts?.emotion ?? "neutral");
   u.pitch = pitch;
   u.rate = rate;
   u.volume = 1;
+  if (synth.paused) synth.resume();
   synth.speak(u);
+
 }
 
 // Play a recorded parent-voice audio URL. Returns a promise that resolves when it ends.
