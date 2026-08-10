@@ -147,7 +147,29 @@ function ChildrenList() {
                   <Link to="/dashboard/$childId" params={{ childId: c.id }}>
                     <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4" /></Button>
                   </Link>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" aria-label={`Xoá hồ sơ ${c.name}`} className="text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Xoá hồ sơ {c.name}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Toàn bộ thẻ từ vựng, ghi âm, câu đã tạo và dữ liệu tiến trình của {c.name} sẽ bị xoá vĩnh viễn. Hành động này không thể hoàn tác.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(c)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Xoá hồ sơ
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
+
               </div>
             ))}
           </div>
