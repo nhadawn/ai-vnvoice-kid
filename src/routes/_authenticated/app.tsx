@@ -192,3 +192,55 @@ function ChildrenList() {
     </div>
   );
 }
+
+/** Safe delete: parent must retype the child's name before confirming. */
+function DeleteChildDialog({ child, onConfirm }: { child: Child; onConfirm: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const ok = typed.trim().toLowerCase() === child.name.trim().toLowerCase();
+
+  return (
+    <AlertDialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setTyped(""); }}>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" size="sm" aria-label={`Xoá hồ sơ ${child.name}`} className="text-destructive hover:bg-destructive/10">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Xoá hồ sơ {child.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Toàn bộ thẻ từ vựng, ghi âm, câu đã tạo và dữ liệu tiến trình của {child.name} sẽ bị xoá.
+            Bạn sẽ có {UNDO_SECONDS} giây để hoàn tác sau khi xác nhận.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor={`confirm-${child.id}`}>
+            Nhập tên “{child.name}” để xác nhận
+          </Label>
+          <Input
+            id={`confirm-${child.id}`}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={child.name}
+            autoComplete="off"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Huỷ</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={!ok}
+            onClick={(e) => {
+              if (!ok) { e.preventDefault(); return; }
+              onConfirm();
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Xoá hồ sơ
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
