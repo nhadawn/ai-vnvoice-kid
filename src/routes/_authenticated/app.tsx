@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Child } from "@/lib/aac-types";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ export const Route = createFileRoute("/_authenticated/app")({
   component: ChildrenList,
 });
 
+const UNDO_SECONDS = 8;
+
 function ChildrenList() {
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,10 @@ function ChildrenList() {
   const [name, setName] = useState("");
   const [year, setYear] = useState("");
   const [voice, setVoice] = useState<"female" | "male">("female");
+  const [pending, setPending] = useState<Set<string>>(new Set());
+  const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const nav = useNavigate();
+
 
   const load = async () => {
     setLoading(true);
@@ -55,8 +60,8 @@ function ChildrenList() {
     load();
   };
 
-  const handleDelete = async (child: Child) => {
-    // Remove stored images/audio of this child (best effort), then the profile.
+  // Hard delete, only run after the undo window expires.
+  const performDelete = async (child: Child) => {
     for (const bucket of ["card-images", "card-audio"]) {
       const { data: files } = await supabase.storage.from(bucket).list(child.id);
       if (files?.length) {
@@ -64,10 +69,37 @@ function ChildrenList() {
       }
     }
     const { error } = await supabase.from("children").delete().eq("id", child.id);
-    if (error) return toast.error(error.message);
+    timers.current.delete(child.id);
+    if (error) {
+      setPending((p) => { const n = new Set(p); n.delete(child.id); return n; });
+      return toast.error(error.message);
+    }
     toast.success(`Đã xoá hồ sơ của ${child.name}`);
     load();
   };
+
+  // Hide the profile immediately, then delete for real after UNDO_SECONDS
+  // unless the parent taps "Hoàn tác".
+  const scheduleDelete = (child: Child) => {
+    setPending((p) => new Set(p).add(child.id));
+    const timer = setTimeout(() => performDelete(child), UNDO_SECONDS * 1000);
+    timers.current.set(child.id, timer);
+    toast(`Đang xoá hồ sơ của ${child.name}...`, {
+      description: `Bạn có ${UNDO_SECONDS} giây để hoàn tác.`,
+      duration: UNDO_SECONDS * 1000,
+      action: {
+        label: "Hoàn tác",
+        onClick: () => {
+          const t = timers.current.get(child.id);
+          if (t) clearTimeout(t);
+          timers.current.delete(child.id);
+          setPending((p) => { const n = new Set(p); n.delete(child.id); return n; });
+          toast.success(`Đã giữ lại hồ sơ của ${child.name}`);
+        },
+      },
+    });
+  };
+
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -123,14 +155,15 @@ function ChildrenList() {
 
         {loading ? (
           <div className="text-center py-12 text-muted-foreground">Đang tải...</div>
-        ) : children.length === 0 ? (
+        ) : children.filter((c) => !pending.has(c.id)).length === 0 ? (
           <div className="rounded-3xl border-2 border-dashed p-12 text-center">
             <p className="text-muted-foreground mb-4">Chưa có hồ sơ trẻ nào. Hãy thêm trẻ đầu tiên.</p>
             <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />Thêm trẻ</Button>
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {children.map((c) => (
+            {children.filter((c) => !pending.has(c.id)).map((c) => (
+
               <div key={c.id} className="rounded-3xl border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 text-3xl">
                   👶
@@ -147,27 +180,8 @@ function ChildrenList() {
                   <Link to="/dashboard/$childId" params={{ childId: c.id }}>
                     <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4" /></Button>
                   </Link>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" aria-label={`Xoá hồ sơ ${c.name}`} className="text-destructive hover:bg-destructive/10">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Xoá hồ sơ {c.name}?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Toàn bộ thẻ từ vựng, ghi âm, câu đã tạo và dữ liệu tiến trình của {c.name} sẽ bị xoá vĩnh viễn. Hành động này không thể hoàn tác.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Huỷ</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(c)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Xoá hồ sơ
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <DeleteChildDialog child={c} onConfirm={() => scheduleDelete(c)} />
+
                 </div>
 
               </div>
@@ -178,3 +192,55 @@ function ChildrenList() {
     </div>
   );
 }
+
+/** Safe delete: parent must retype the child's name before confirming. */
+function DeleteChildDialog({ child, onConfirm }: { child: Child; onConfirm: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const ok = typed.trim().toLowerCase() === child.name.trim().toLowerCase();
+
+  return (
+    <AlertDialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setTyped(""); }}>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" size="sm" aria-label={`Xoá hồ sơ ${child.name}`} className="text-destructive hover:bg-destructive/10">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Xoá hồ sơ {child.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Toàn bộ thẻ từ vựng, ghi âm, câu đã tạo và dữ liệu tiến trình của {child.name} sẽ bị xoá.
+            Bạn sẽ có {UNDO_SECONDS} giây để hoàn tác sau khi xác nhận.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor={`confirm-${child.id}`}>
+            Nhập tên “{child.name}” để xác nhận
+          </Label>
+          <Input
+            id={`confirm-${child.id}`}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={child.name}
+            autoComplete="off"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Huỷ</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={!ok}
+            onClick={(e) => {
+              if (!ok) { e.preventDefault(); return; }
+              onConfirm();
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Xoá hồ sơ
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
