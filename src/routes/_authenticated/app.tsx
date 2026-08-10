@@ -55,8 +55,8 @@ function ChildrenList() {
     load();
   };
 
-  const handleDelete = async (child: Child) => {
-    // Remove stored images/audio of this child (best effort), then the profile.
+  // Hard delete, only run after the undo window expires.
+  const performDelete = async (child: Child) => {
     for (const bucket of ["card-images", "card-audio"]) {
       const { data: files } = await supabase.storage.from(bucket).list(child.id);
       if (files?.length) {
@@ -64,10 +64,37 @@ function ChildrenList() {
       }
     }
     const { error } = await supabase.from("children").delete().eq("id", child.id);
-    if (error) return toast.error(error.message);
+    timers.current.delete(child.id);
+    if (error) {
+      setPending((p) => { const n = new Set(p); n.delete(child.id); return n; });
+      return toast.error(error.message);
+    }
     toast.success(`Đã xoá hồ sơ của ${child.name}`);
     load();
   };
+
+  // Hide the profile immediately, then delete for real after UNDO_SECONDS
+  // unless the parent taps "Hoàn tác".
+  const scheduleDelete = (child: Child) => {
+    setPending((p) => new Set(p).add(child.id));
+    const timer = setTimeout(() => performDelete(child), UNDO_SECONDS * 1000);
+    timers.current.set(child.id, timer);
+    toast(`Đang xoá hồ sơ của ${child.name}...`, {
+      description: `Bạn có ${UNDO_SECONDS} giây để hoàn tác.`,
+      duration: UNDO_SECONDS * 1000,
+      action: {
+        label: "Hoàn tác",
+        onClick: () => {
+          const t = timers.current.get(child.id);
+          if (t) clearTimeout(t);
+          timers.current.delete(child.id);
+          setPending((p) => { const n = new Set(p); n.delete(child.id); return n; });
+          toast.success(`Đã giữ lại hồ sơ của ${child.name}`);
+        },
+      },
+    });
+  };
+
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
