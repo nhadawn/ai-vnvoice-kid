@@ -21,6 +21,8 @@ export const Route = createFileRoute("/_authenticated/app")({
   component: ChildrenList,
 });
 
+const UNDO_SECONDS = 8;
+
 function ChildrenList() {
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,10 @@ function ChildrenList() {
   const [name, setName] = useState("");
   const [year, setYear] = useState("");
   const [voice, setVoice] = useState<"female" | "male">("female");
+  const [pending, setPending] = useState<Set<string>>(new Set());
+  const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const nav = useNavigate();
+
 
   const load = async () => {
     setLoading(true);
