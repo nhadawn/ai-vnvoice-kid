@@ -62,6 +62,8 @@ function BoardPage() {
   const place = usePlace(true);
   const [placesOpen, setPlacesOpen] = useState(false);
   const [habitTick, setHabitTick] = useState(0);
+  // Child Mode is the default; caregiver tools stay hidden until unlocked.
+  const [caregiver, setCaregiver] = useState(false);
 
   // Auto geofence: announce whenever the detected place changes so the parent
   // sees the AAC context has switched by itself.
