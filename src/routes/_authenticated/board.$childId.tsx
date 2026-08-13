@@ -8,8 +8,9 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Siren, Trash2, MapPin, Clock, Mic } from "lucide-react";
-import { speak, playSOS, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
+import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Trash2, MapPin, Clock, Mic } from "lucide-react";
+import { speak, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
+import { SOSButton } from "@/components/SOSButton";
 import { VoiceRecorderDialog } from "@/components/VoiceRecorderDialog";
 import { EditCardDialog } from "@/components/EditCardDialog";
 import { ScaffoldPanel } from "@/components/ScaffoldPanel";
@@ -347,15 +348,6 @@ function BoardPage() {
               <MapPin className="h-4 w-4 mr-1.5" />Địa điểm
             </Button>
             <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => { playSOS(); toast.error("🚨 Đã gửi tín hiệu SOS!"); }}
-              aria-label="SOS — Cứu giúp"
-              className="font-bold"
-            >
-              <Siren className="h-4 w-4 mr-1.5" />SOS
-            </Button>
-            <Button
               variant={locked ? "default" : "outline"}
               size="sm"
               onClick={() => {
@@ -591,6 +583,7 @@ function BoardPage() {
         signedImageUrl={editCard?.image_url ? signedUrls[editCard.image_url] : undefined}
         onSaved={() => { setSignedUrls({}); refresh(); }}
       />
+      <SOSButton />
     </div>
   );
 }

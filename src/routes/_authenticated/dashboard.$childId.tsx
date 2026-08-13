@@ -109,7 +109,7 @@ function Dashboard() {
     }
     if (topLabels.length) {
       const top = topLabels[0];
-      out.push(`💡 Bé đang dùng thẻ "${top[0]}" rất nhiều (${top[1]} lần) — hãy cho bé chạm vào "${top[0]}" thật và lặp lại từ này.`);
+      out.push(`💡 Bé đang dùng thẻ "${top[0]}" rất nhiều (${top[1]} lần) — hãy cho bé thử dùng "${top[0]}" trong tình huống thật và lặp lại từ này.`);
     }
     const suggestedTaps = interactions.filter((i) => i.was_suggested).length;
     if (total > 20) {
