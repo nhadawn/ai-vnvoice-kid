@@ -336,65 +336,68 @@ function BoardPage() {
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <Link to="/app"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
+            {caregiver && (
+              <Link to="/app"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
+            )}
             <div>
               <h1 className="font-bold leading-tight">{child.name}</h1>
               <p className="text-xs text-muted-foreground">Mức {child.current_level.replace("level_", "")}</p>
             </div>
           </div>
-          <div className="flex gap-1.5 flex-wrap justify-end">
-            <Button variant="outline" size="sm" onClick={() => setPlacesOpen(true)}>
-              <MapPin className="h-4 w-4 mr-1.5" />Địa điểm
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => { playSOS(); toast.error("🚨 Đã gửi tín hiệu SOS!"); }}
-              aria-label="SOS — Cứu giúp"
-              className="font-bold"
-            >
-              <Siren className="h-4 w-4 mr-1.5" />SOS
-            </Button>
-            <Button
-              variant={locked ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setLocked((v) => !v);
-                if (!locked) setSuggestion(null);
-                toast.info(locked ? "Đã mở khoá lưới — AI tiếp tục gợi ý" : "Đã khoá lưới — giữ nguyên vị trí thẻ");
-              }}
-              aria-label={locked ? "Mở khoá lưới" : "Khoá lưới"}
-            >
-              {locked ? <Lock className="h-4 w-4 mr-1.5" /> : <LockOpen className="h-4 w-4 mr-1.5" />}
-              {locked ? "Đã khoá" : "Khoá lưới"}
-            </Button>
-            <ThemePicker />
-            <AddCardDialog childId={childId} categories={categories} onCreated={refresh} />
-            <Button
-              variant={editMode ? "destructive" : "outline"}
-              size="sm"
-              onClick={() => {
-                setEditMode((v) => !v);
-                setSuggestion(null);
-                toast.info(editMode ? "Đã tắt chế độ chỉnh sửa" : "Chạm thẻ để ghi âm • ✏️ để sửa ảnh/biểu tượng/thư mục • ✕ để xoá");
-              }}
-              aria-label={editMode ? "Xong" : "Xoá thẻ"}
-            >
-              <Trash2 className="h-4 w-4 mr-1.5" />{editMode ? "Xong" : "Sửa / Ghi âm"}
-            </Button>
-            <Link
-              to="/coach/$childId"
-              params={{ childId }}
-              search={{ w: utterance.map((c) => c.label).join("|") || undefined }}
-            >
-              <Button variant="secondary" size="sm"><Mic className="h-4 w-4 mr-1.5" />Tập nói cùng AI</Button>
-            </Link>
-            <Link to="/dashboard/$childId" params={{ childId }}>
-              <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
-            </Link>
+          <div className="flex gap-1.5 flex-wrap justify-end items-center">
+            {caregiver && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setPlacesOpen(true)}>
+                  <MapPin className="h-4 w-4 mr-1.5" />Địa điểm
+                </Button>
+                <Button
+                  variant={locked ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setLocked((v) => !v);
+                    if (!locked) setSuggestion(null);
+                    toast.info(locked ? "Đã mở khoá lưới — AI tiếp tục gợi ý" : "Đã khoá lưới — giữ nguyên vị trí thẻ");
+                  }}
+                  aria-label={locked ? "Mở khoá lưới" : "Khoá lưới"}
+                >
+                  {locked ? <Lock className="h-4 w-4 mr-1.5" /> : <LockOpen className="h-4 w-4 mr-1.5" />}
+                  {locked ? "Đã khoá" : "Khoá lưới"}
+                </Button>
+                <ThemePicker />
+                <AddCardDialog childId={childId} categories={categories} onCreated={refresh} />
+                <Button
+                  variant={editMode ? "destructive" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setEditMode((v) => !v);
+                    setSuggestion(null);
+                    toast.info(editMode ? "Đã tắt chế độ chỉnh sửa" : "Chạm thẻ để ghi âm • ✏️ để sửa ảnh/biểu tượng/thư mục • ✕ để xoá");
+                  }}
+                  aria-label={editMode ? "Xong" : "Xoá thẻ"}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" />{editMode ? "Xong" : "Sửa / Ghi âm"}
+                </Button>
+                <Link
+                  to="/coach/$childId"
+                  params={{ childId }}
+                  search={{ w: utterance.map((c) => c.label).join("|") || undefined }}
+                >
+                  <Button variant="secondary" size="sm"><Mic className="h-4 w-4 mr-1.5" />Tập nói cùng AI</Button>
+                </Link>
+                <Link to="/dashboard/$childId" params={{ childId }}>
+                  <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
+                </Link>
+              </>
+            )}
+            <ModeSwitch
+              caregiver={caregiver}
+              onChange={(v) => { setCaregiver(v); if (!v) setEditMode(false); }}
+            />
           </div>
         </div>
       </header>
+
+      <SosButton />
 
       <main className="flex-1 mx-auto max-w-6xl w-full px-4 py-4 space-y-3">
         <UtteranceBar
