@@ -582,6 +582,7 @@ function BoardPage() {
         signedImageUrl={editCard?.image_url ? signedUrls[editCard.image_url] : undefined}
         onSaved={() => { setSignedUrls({}); refresh(); }}
       />
+      <SOSButton />
     </div>
   );
 }
