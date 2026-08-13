@@ -347,15 +347,6 @@ function BoardPage() {
               <MapPin className="h-4 w-4 mr-1.5" />Địa điểm
             </Button>
             <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => { playSOS(); toast.error("🚨 Đã gửi tín hiệu SOS!"); }}
-              aria-label="SOS — Cứu giúp"
-              className="font-bold"
-            >
-              <Siren className="h-4 w-4 mr-1.5" />SOS
-            </Button>
-            <Button
               variant={locked ? "default" : "outline"}
               size="sm"
               onClick={() => {
