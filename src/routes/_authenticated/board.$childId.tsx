@@ -8,7 +8,7 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Trash2, MapPin, Clock, Mic } from "lucide-react";
+import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Trash2, MapPin, Clock } from "lucide-react";
 import { speak, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
 import { SOSButton } from "@/components/SOSButton";
 import { VoiceRecorderDialog } from "@/components/VoiceRecorderDialog";
@@ -374,13 +374,6 @@ function BoardPage() {
             >
               <Trash2 className="h-4 w-4 mr-1.5" />{editMode ? "Xong" : "Sửa / Ghi âm"}
             </Button>
-            <Link
-              to="/coach/$childId"
-              params={{ childId }}
-              search={{ w: utterance.map((c) => c.label).join("|") || undefined }}
-            >
-              <Button variant="secondary" size="sm"><Mic className="h-4 w-4 mr-1.5" />Tập nói cùng AI</Button>
-            </Link>
             <Link to="/dashboard/$childId" params={{ childId }}>
               <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
             </Link>

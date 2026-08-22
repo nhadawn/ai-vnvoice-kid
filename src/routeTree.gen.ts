@@ -14,7 +14,6 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedDashboardChildIdRouteImport } from './routes/_authenticated/dashboard.$childId'
-import { Route as AuthenticatedCoachChildIdRouteImport } from './routes/_authenticated/coach.$childId'
 import { Route as AuthenticatedBoardChildIdRouteImport } from './routes/_authenticated/board.$childId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -42,12 +41,6 @@ const AuthenticatedDashboardChildIdRoute =
     path: '/dashboard/$childId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedCoachChildIdRoute =
-  AuthenticatedCoachChildIdRouteImport.update({
-    id: '/coach/$childId',
-    path: '/coach/$childId',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedBoardChildIdRoute =
   AuthenticatedBoardChildIdRouteImport.update({
     id: '/board/$childId',
@@ -60,7 +53,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRoute
   '/board/$childId': typeof AuthenticatedBoardChildIdRoute
-  '/coach/$childId': typeof AuthenticatedCoachChildIdRoute
   '/dashboard/$childId': typeof AuthenticatedDashboardChildIdRoute
 }
 export interface FileRoutesByTo {
@@ -68,7 +60,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRoute
   '/board/$childId': typeof AuthenticatedBoardChildIdRoute
-  '/coach/$childId': typeof AuthenticatedCoachChildIdRoute
   '/dashboard/$childId': typeof AuthenticatedDashboardChildIdRoute
 }
 export interface FileRoutesById {
@@ -78,26 +69,13 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/board/$childId': typeof AuthenticatedBoardChildIdRoute
-  '/_authenticated/coach/$childId': typeof AuthenticatedCoachChildIdRoute
   '/_authenticated/dashboard/$childId': typeof AuthenticatedDashboardChildIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/auth'
-    | '/app'
-    | '/board/$childId'
-    | '/coach/$childId'
-    | '/dashboard/$childId'
+  fullPaths: '/' | '/auth' | '/app' | '/board/$childId' | '/dashboard/$childId'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/auth'
-    | '/app'
-    | '/board/$childId'
-    | '/coach/$childId'
-    | '/dashboard/$childId'
+  to: '/' | '/auth' | '/app' | '/board/$childId' | '/dashboard/$childId'
   id:
     | '__root__'
     | '/'
@@ -105,7 +83,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/app'
     | '/_authenticated/board/$childId'
-    | '/_authenticated/coach/$childId'
     | '/_authenticated/dashboard/$childId'
   fileRoutesById: FileRoutesById
 }
@@ -152,13 +129,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardChildIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/coach/$childId': {
-      id: '/_authenticated/coach/$childId'
-      path: '/coach/$childId'
-      fullPath: '/coach/$childId'
-      preLoaderRoute: typeof AuthenticatedCoachChildIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/board/$childId': {
       id: '/_authenticated/board/$childId'
       path: '/board/$childId'
@@ -172,14 +142,12 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRoute
   AuthenticatedBoardChildIdRoute: typeof AuthenticatedBoardChildIdRoute
-  AuthenticatedCoachChildIdRoute: typeof AuthenticatedCoachChildIdRoute
   AuthenticatedDashboardChildIdRoute: typeof AuthenticatedDashboardChildIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRoute,
   AuthenticatedBoardChildIdRoute: AuthenticatedBoardChildIdRoute,
-  AuthenticatedCoachChildIdRoute: AuthenticatedCoachChildIdRoute,
   AuthenticatedDashboardChildIdRoute: AuthenticatedDashboardChildIdRoute,
 }
 
