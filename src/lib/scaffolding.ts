@@ -6,6 +6,14 @@
 //   e.g. "ăn"  →  "Con ăn"  →  "Con ăn cơm"  →  "Con muốn ăn cơm"
 
 import type { Card, PartOfSpeech, ScaffoldLevel } from "./aac-types";
+import {
+  isModal,
+  isSubjectPhrase,
+  isSubjectWord,
+  norm as viNorm,
+  renderCards,
+} from "./vi-grammar";
+
 
 export interface ScaffoldSuggestion {
   cards: Card[];
