@@ -337,13 +337,31 @@ function BoardPage() {
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <Link to="/app"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
+            {!kidMode && (
+              <Link to="/app"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
+            )}
             <div>
               <h1 className="font-bold leading-tight">{child.name}</h1>
-              <p className="text-xs text-muted-foreground">Mức {child.current_level.replace("level_", "")}</p>
+              <p className="text-xs text-muted-foreground">
+                {kidMode ? "Chế độ trẻ 🧒" : `Mức ${child.current_level.replace("level_", "")}`}
+              </p>
             </div>
           </div>
+          {kidMode ? (
+            <HoldButton
+              onComplete={exitKidMode}
+              durationMs={2000}
+              label="Giữ 2 giây để mở chế độ phụ huynh"
+              hint="Giữ 2 giây để mở chế độ phụ huynh"
+            >
+              <Lock className="h-4 w-4" />
+              <span className="hidden sm:inline">Giữ 2s để mở</span>
+            </HoldButton>
+          ) : (
           <div className="flex gap-1.5 flex-wrap justify-end">
+            <Button variant="secondary" size="sm" onClick={enterKidMode}>
+              <Baby className="h-4 w-4 mr-1.5" />Chế độ trẻ
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setPlacesOpen(true)}>
               <MapPin className="h-4 w-4 mr-1.5" />Địa điểm
             </Button>
@@ -378,8 +396,10 @@ function BoardPage() {
               <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
             </Link>
           </div>
+          )}
         </div>
       </header>
+
 
       <main className="flex-1 mx-auto max-w-6xl w-full px-4 py-4 space-y-3">
         <UtteranceBar
