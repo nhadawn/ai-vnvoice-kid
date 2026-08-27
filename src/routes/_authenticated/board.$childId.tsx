@@ -437,8 +437,10 @@ function BoardPage() {
           onRemoveLast={() => setUtterance((u) => u.slice(0, -1))}
         />
 
-        {/* Context chips — AI surfaces cards by habit + time + place */}
+        {/* Context chips — AI surfaces cards by habit + time + place (parent only) */}
+        {!kidMode && (
         <div className="flex items-center gap-2 flex-wrap text-xs">
+
           <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-medium">
             <Clock className="h-3.5 w-3.5" />
             {({ morning: "Buổi sáng", noon: "Buổi trưa", evening: "Buổi chiều", night: "Buổi tối" } as const)[timeBucket(new Date().getHours())]}
