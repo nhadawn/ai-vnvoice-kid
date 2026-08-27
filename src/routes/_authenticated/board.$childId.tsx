@@ -61,6 +61,32 @@ function BoardPage() {
   const place = usePlace(true);
   const [placesOpen, setPlacesOpen] = useState(false);
   const [habitTick, setHabitTick] = useState(0);
+  const [kidMode, setKidMode] = useState(false);
+
+  // Kid Mode is remembered per child so the app reopens where the parent left it.
+  const kidKey = `aac-kid-mode-${childId}`;
+  useEffect(() => {
+    try { setKidMode(localStorage.getItem(kidKey) === "1"); } catch { /* noop */ }
+  }, [kidKey]);
+
+  const enterKidMode = () => {
+    setKidMode(true);
+    setEditMode(false);
+    setPlacesOpen(false);
+    setSearch("");
+    try { localStorage.setItem(kidKey, "1"); } catch { /* noop */ }
+    toast.success("Đã bật Chế độ trẻ", {
+      description: "Để trở về chế độ phụ huynh: GIỮ nút 🔒 ở góc trên bên phải khoảng 2 giây.",
+      duration: 7000,
+    });
+  };
+
+  const exitKidMode = () => {
+    setKidMode(false);
+    try { localStorage.removeItem(kidKey); } catch { /* noop */ }
+    toast.success("Đã mở Chế độ phụ huynh");
+  };
+
 
   // Auto geofence: announce whenever the detected place changes so the parent
   // sees the AAC context has switched by itself.
