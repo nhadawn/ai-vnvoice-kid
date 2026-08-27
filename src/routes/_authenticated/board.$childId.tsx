@@ -67,10 +67,10 @@ function BoardPage() {
   const [habitTick, setHabitTick] = useState(0);
   const [kidMode, setKidMode] = useState(false);
 
-  // Kid Mode is remembered per child so the app reopens where the parent left it.
+  // Kid Mode is the default; parent mode is remembered per child once chosen.
   const kidKey = `aac-kid-mode-${childId}`;
   useEffect(() => {
-    try { setKidMode(localStorage.getItem(kidKey) === "1"); } catch { /* noop */ }
+    try { setKidMode(localStorage.getItem(kidKey) !== "0"); } catch { /* noop */ }
   }, [kidKey]);
 
   const enterKidMode = () => {
@@ -87,7 +87,7 @@ function BoardPage() {
 
   const exitKidMode = () => {
     setKidMode(false);
-    try { localStorage.removeItem(kidKey); } catch { /* noop */ }
+    try { localStorage.setItem(kidKey, "0"); } catch { /* noop */ }
     toast.success("Đã mở Chế độ phụ huynh");
   };
 
@@ -380,15 +380,30 @@ function BoardPage() {
             </div>
           </div>
           {kidMode ? (
-            <HoldButton
-              onComplete={exitKidMode}
-              durationMs={2000}
-              label="Giữ 2 giây để mở chế độ phụ huynh"
-              hint="Giữ 2 giây để mở chế độ phụ huynh"
-            >
-              <Lock className="h-4 w-4" />
-              <span className="hidden sm:inline">Giữ 2s để mở</span>
-            </HoldButton>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant={locked ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setLocked((v) => !v);
+                  if (!locked) setSuggestion(null);
+                  toast.info(locked ? "Đã mở khoá lưới — AI tiếp tục gợi ý" : "Đã khoá lưới — giữ nguyên vị trí thẻ");
+                }}
+                aria-label={locked ? "Mở khoá lưới" : "Khoá lưới"}
+              >
+                {locked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
+                <span className="hidden sm:inline ml-1.5">{locked ? "Đã khoá" : "Khoá lưới"}</span>
+              </Button>
+              <HoldButton
+                onComplete={exitKidMode}
+                durationMs={2000}
+                label="Giữ 2 giây để mở chế độ phụ huynh"
+                hint="Giữ 2 giây để mở chế độ phụ huynh"
+              >
+                <Lock className="h-4 w-4" />
+                <span className="hidden sm:inline">Giữ 2s để mở</span>
+              </HoldButton>
+            </div>
           ) : (
           <div className="flex gap-1.5 flex-wrap justify-end">
             <Button variant="secondary" size="sm" onClick={enterKidMode}>
