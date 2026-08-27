@@ -8,7 +8,9 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Trash2, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Trash2, MapPin, Clock, Baby } from "lucide-react";
+import { HoldButton } from "@/components/HoldButton";
+
 import { speak, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
 import { SOSButton } from "@/components/SOSButton";
 import { VoiceRecorderDialog } from "@/components/VoiceRecorderDialog";
