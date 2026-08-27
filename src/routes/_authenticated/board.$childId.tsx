@@ -8,7 +8,9 @@ import { AddCardDialog } from "@/components/AddCardDialog";
 import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Trash2, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, BarChart3, X, Lock, LockOpen, Search, Trash2, MapPin, Clock, Baby } from "lucide-react";
+import { HoldButton } from "@/components/HoldButton";
+
 import { speak, playAudioUrl, speakSequence, type Emotion } from "@/lib/tts";
 import { SOSButton } from "@/components/SOSButton";
 import { VoiceRecorderDialog } from "@/components/VoiceRecorderDialog";
@@ -16,7 +18,9 @@ import { EditCardDialog } from "@/components/EditCardDialog";
 import { ScaffoldPanel } from "@/components/ScaffoldPanel";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
+import { renderCards } from "@/lib/vi-grammar";
 import { usePlace } from "@/hooks/use-place";
+
 import { habitScores, logUsage, timeBucketOf, placeVocabScores, placeKindIcon } from "@/lib/context-memory";
 import { PlacesDialog } from "@/components/PlacesDialog";
 import { toast } from "sonner";
@@ -61,6 +65,32 @@ function BoardPage() {
   const place = usePlace(true);
   const [placesOpen, setPlacesOpen] = useState(false);
   const [habitTick, setHabitTick] = useState(0);
+  const [kidMode, setKidMode] = useState(false);
+
+  // Kid Mode is remembered per child so the app reopens where the parent left it.
+  const kidKey = `aac-kid-mode-${childId}`;
+  useEffect(() => {
+    try { setKidMode(localStorage.getItem(kidKey) === "1"); } catch { /* noop */ }
+  }, [kidKey]);
+
+  const enterKidMode = () => {
+    setKidMode(true);
+    setEditMode(false);
+    setPlacesOpen(false);
+    setSearch("");
+    try { localStorage.setItem(kidKey, "1"); } catch { /* noop */ }
+    toast.success("Đã bật Chế độ trẻ", {
+      description: "Để trở về chế độ phụ huynh: GIỮ nút 🔒 ở góc trên bên phải khoảng 2 giây.",
+      duration: 7000,
+    });
+  };
+
+  const exitKidMode = () => {
+    setKidMode(false);
+    try { localStorage.removeItem(kidKey); } catch { /* noop */ }
+    toast.success("Đã mở Chế độ phụ huynh");
+  };
+
 
   // Auto geofence: announce whenever the detected place changes so the parent
   // sees the AAC context has switched by itself.
@@ -279,7 +309,9 @@ function BoardPage() {
 
   const handleSpeak = async () => {
     if (utterance.length === 0) return;
-    const text = utterance.map((c) => c.label).join(" ");
+    // Natural Vietnamese sentence (bỏ chủ ngữ lặp, đúng trật tự từ)
+    const text = renderCards(utterance);
+
     speakSequence(
       utterance.map((c) => ({ label: c.label, audioUrl: c.audio_url ? signedAudioUrls[c.audio_url] : null })),
       { voice: child?.voice_preference, joinText: text },
@@ -337,13 +369,31 @@ function BoardPage() {
       <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-10">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <Link to="/app"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
+            {!kidMode && (
+              <Link to="/app"><Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button></Link>
+            )}
             <div>
               <h1 className="font-bold leading-tight">{child.name}</h1>
-              <p className="text-xs text-muted-foreground">Mức {child.current_level.replace("level_", "")}</p>
+              <p className="text-xs text-muted-foreground">
+                {kidMode ? "Chế độ trẻ 🧒" : `Mức ${child.current_level.replace("level_", "")}`}
+              </p>
             </div>
           </div>
+          {kidMode ? (
+            <HoldButton
+              onComplete={exitKidMode}
+              durationMs={2000}
+              label="Giữ 2 giây để mở chế độ phụ huynh"
+              hint="Giữ 2 giây để mở chế độ phụ huynh"
+            >
+              <Lock className="h-4 w-4" />
+              <span className="hidden sm:inline">Giữ 2s để mở</span>
+            </HoldButton>
+          ) : (
           <div className="flex gap-1.5 flex-wrap justify-end">
+            <Button variant="secondary" size="sm" onClick={enterKidMode}>
+              <Baby className="h-4 w-4 mr-1.5" />Chế độ trẻ
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setPlacesOpen(true)}>
               <MapPin className="h-4 w-4 mr-1.5" />Địa điểm
             </Button>
@@ -378,8 +428,10 @@ function BoardPage() {
               <Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1.5" />Báo cáo</Button>
             </Link>
           </div>
+          )}
         </div>
       </header>
+
 
       <main className="flex-1 mx-auto max-w-6xl w-full px-4 py-4 space-y-3">
         <UtteranceBar
@@ -389,8 +441,10 @@ function BoardPage() {
           onRemoveLast={() => setUtterance((u) => u.slice(0, -1))}
         />
 
-        {/* Context chips — AI surfaces cards by habit + time + place */}
+        {/* Context chips — AI surfaces cards by habit + time + place (parent only) */}
+        {!kidMode && (
         <div className="flex items-center gap-2 flex-wrap text-xs">
+
           <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-medium">
             <Clock className="h-3.5 w-3.5" />
             {({ morning: "Buổi sáng", noon: "Buổi trưa", evening: "Buổi chiều", night: "Buổi tối" } as const)[timeBucket(new Date().getHours())]}
@@ -420,10 +474,10 @@ function BoardPage() {
           </button>
           <span className="text-muted-foreground">AI gợi ý theo thói quen · thời gian · vị trí</span>
         </div>
+        )}
 
-
-
-        {/* Search bar */}
+        {/* Search bar (parent only) */}
+        {!kidMode && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -442,6 +496,8 @@ function BoardPage() {
             </button>
           )}
         </div>
+        )}
+
 
         {/* Category tabs (hidden during search) */}
         {!search && (
