@@ -307,7 +307,9 @@ function BoardPage() {
 
   const handleSpeak = async () => {
     if (utterance.length === 0) return;
-    const text = utterance.map((c) => c.label).join(" ");
+    // Natural Vietnamese sentence (bỏ chủ ngữ lặp, đúng trật tự từ)
+    const text = renderCards(utterance);
+
     speakSequence(
       utterance.map((c) => ({ label: c.label, audioUrl: c.audio_url ? signedAudioUrls[c.audio_url] : null })),
       { voice: child?.voice_preference, joinText: text },
