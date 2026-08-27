@@ -59,8 +59,10 @@ export function buildScaffold(
   if (utterance.length >= target) return null; // already met target length
 
   const has = (pos: PartOfSpeech) => utterance.some((c) => c.part_of_speech === pos);
-  const hasSubject = has("pronoun") || has("phrase");
-  const hasVerb = has("verb");
+  const hasSubjectPhrase = utterance.some((c) => isSubjectPhrase(c.label));
+  const hasSubjectWord = utterance.some((c) => isSubjectWord(c.label) || c.part_of_speech === "pronoun");
+  const hasSubject = hasSubjectPhrase || hasSubjectWord;
+  const hasVerb = has("verb") && !utterance.every((c) => isModal(c.label));
   const hasNoun = has("noun");
   const hasAdj = has("adjective");
   const last = utterance[utterance.length - 1];
@@ -68,31 +70,41 @@ export function buildScaffold(
   let neededPos: PartOfSpeech[] = [];
   let slot: "before" | "after" = "after";
   let rationale = "";
+  /** prefer these labels (unaccented) when ranking candidates */
+  let preferLabels: string[] = [];
 
-  // Decide missing slot in canonical Vietnamese order
+  // Decide the missing slot following canonical Vietnamese word order:
+  //   [chủ ngữ / cụm chức năng] [động từ] [danh từ] [tính từ]
   if (hasNoun && !hasVerb) {
-    // có danh từ, thiếu động từ → thêm động từ trước
+    // "cơm" → cần động từ: "ăn cơm"
     neededPos = ["verb"];
     slot = "before";
     rationale = "Thêm động từ trước danh từ (VD: ăn cơm)";
   } else if (hasVerb && !hasNoun) {
-    // có động từ, thiếu danh từ → thêm danh từ sau
+    // "ăn" → cần tân ngữ: "ăn cơm"
     neededPos = ["noun"];
     slot = "after";
     rationale = "Thêm danh từ làm tân ngữ (VD: ăn cơm)";
-  } else if (level === "level_4" && !hasSubject && (hasVerb || hasNoun)) {
-    // thiếu chủ ngữ → thêm Con/Mẹ/Con muốn ở đầu
-    neededPos = ["pronoun", "phrase"];
+  } else if (level === "level_4" && !hasSubject) {
+    // "ăn cơm" → "Con muốn ăn cơm": ưu tiên cụm chức năng có sẵn chủ ngữ
+    neededPos = ["phrase", "pronoun"];
     slot = "before";
-    rationale = "Thêm chủ ngữ (Con, Mẹ...) để thành câu đầy đủ";
+    preferLabels = ["con muon", "con thich", "con can", "cho con", "con"];
+    rationale = 'Thêm cụm chủ ngữ ở đầu câu (VD: "Con muốn ăn cơm")';
+  } else if (level === "level_4" && hasSubjectWord && !hasSubjectPhrase && !hasVerb) {
+    // "Con" → "Con muốn ..."
+    neededPos = ["verb", "phrase"];
+    slot = "after";
+    preferLabels = ["muon", "thich", "can"];
+    rationale = "Thêm động từ mong muốn sau chủ ngữ (VD: Con muốn...)";
   } else if (level === "level_3" && hasNoun && !hasAdj) {
     neededPos = ["adjective"];
     slot = "after";
     rationale = "Thêm tính từ mô tả (VD: sữa nóng)";
-  } else if (last.part_of_speech === "pronoun" || last.part_of_speech === "phrase") {
-    neededPos = ["verb", "noun"];
+  } else if (isSubjectPhrase(last.label) || last.part_of_speech === "pronoun") {
+    neededPos = ["verb"];
     slot = "after";
-    rationale = "Tiếp theo nên là động từ hoặc danh từ";
+    rationale = "Sau chủ ngữ nên là động từ (VD: Con muốn uống)";
   } else if (last.part_of_speech === "verb") {
     neededPos = ["noun"];
     slot = "after";
@@ -111,12 +123,22 @@ export function buildScaffold(
 
   // Pool of candidate cards (exclude ones already in utterance)
   const usedIds = new Set(utterance.map((c) => c.id));
+  const usedLabels = new Set(utterance.map((c) => viNorm(c.label)));
   let pool = allCards.filter(
-    (c) => !usedIds.has(c.id) && neededPos.includes(c.part_of_speech),
+    (c) =>
+      !usedIds.has(c.id) &&
+      !usedLabels.has(viNorm(c.label)) &&
+      neededPos.includes(c.part_of_speech),
   );
   if (pool.length === 0) {
-    pool = allCards.filter((c) => !usedIds.has(c.id));
+    pool = allCards.filter((c) => !usedIds.has(c.id) && !usedLabels.has(viNorm(c.label)));
   }
+  // Never suggest a second subject once the sentence already has one
+  if (hasSubject) {
+    const trimmed = pool.filter((c) => !isSubjectPhrase(c.label) && !isSubjectWord(c.label));
+    if (trimmed.length > 0) pool = trimmed;
+  }
+  if (pool.length === 0) return null;
 
   const after = bigrams[last.label] ?? {};
   const totalAfter = Object.values(after).reduce((a, b) => a + b, 0) || 1;
@@ -127,9 +149,13 @@ export function buildScaffold(
     const freq = c.use_count;
     const timeBoost = c.context_tags?.some((t) => timeTags.includes(t)) ? 1 : 0;
     const sameCat = c.category_id === last.category_id ? 1 : 0;
+    const preferBoost = preferLabels.includes(viNorm(c.label))
+      ? 6 - preferLabels.indexOf(viNorm(c.label))
+      : 0;
     return {
       card: c,
       score:
+        preferBoost * 3 +
         bigramScore * 10 +
         freq * 0.4 +
         timeBoost * 1.5 +
@@ -141,12 +167,14 @@ export function buildScaffold(
   const candidates = scored.slice(0, 4).map((s) => s.card);
   if (candidates.length === 0) return null;
 
-  // Build the proposed sentence text using the top candidate
-  const labels = utterance.map((c) => c.label);
-  const top = candidates[0].label;
-  const text = slot === "before" ? [top, ...labels].join(" ") : [...labels, top].join(" ");
+  // Build the proposed sentence with Vietnamese grammar cleanup, so we get
+  // "Con muốn ăn cơm" instead of "Con muốn con ăn cơm".
+  const top = candidates[0];
+  const seq = slot === "before" ? [top, ...utterance] : [...utterance, top];
+  const text = renderCards(seq);
 
   return { candidates, text, rationale, slot, neededPos };
+
 }
 
 /**
