@@ -67,10 +67,10 @@ function BoardPage() {
   const [habitTick, setHabitTick] = useState(0);
   const [kidMode, setKidMode] = useState(false);
 
-  // Kid Mode is remembered per child so the app reopens where the parent left it.
+  // Kid Mode is the default; parent mode is remembered per child once chosen.
   const kidKey = `aac-kid-mode-${childId}`;
   useEffect(() => {
-    try { setKidMode(localStorage.getItem(kidKey) === "1"); } catch { /* noop */ }
+    try { setKidMode(localStorage.getItem(kidKey) !== "0"); } catch { /* noop */ }
   }, [kidKey]);
 
   const enterKidMode = () => {
@@ -87,7 +87,7 @@ function BoardPage() {
 
   const exitKidMode = () => {
     setKidMode(false);
-    try { localStorage.removeItem(kidKey); } catch { /* noop */ }
+    try { localStorage.setItem(kidKey, "0"); } catch { /* noop */ }
     toast.success("Đã mở Chế độ phụ huynh");
   };
 
