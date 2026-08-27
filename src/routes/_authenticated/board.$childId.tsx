@@ -18,7 +18,9 @@ import { EditCardDialog } from "@/components/EditCardDialog";
 import { ScaffoldPanel } from "@/components/ScaffoldPanel";
 import { buildBigrams, classifyHighlights, type SmartGridContext } from "@/lib/smart-grid";
 import { buildScaffold, shouldPromote } from "@/lib/scaffolding";
+import { renderCards } from "@/lib/vi-grammar";
 import { usePlace } from "@/hooks/use-place";
+
 import { habitScores, logUsage, timeBucketOf, placeVocabScores, placeKindIcon } from "@/lib/context-memory";
 import { PlacesDialog } from "@/components/PlacesDialog";
 import { toast } from "sonner";
